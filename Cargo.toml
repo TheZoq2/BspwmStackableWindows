@@ -5,3 +5,4 @@ authors = ["TheZoq2 <frans.skarman@gmail.com>"]
 
 [dependencies]
 regex = "0.1"
+rustc-serialize = "0.3"
