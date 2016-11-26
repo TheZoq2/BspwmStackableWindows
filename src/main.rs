@@ -114,6 +114,14 @@ fn node_resize(node: &str, direction: ResizeDirection, dx: i32, dy: i32)
 }
 
 /**
+    Focuses on a specified node
+*/
+fn node_focus(node: &str)
+{
+    println!("{}", call_program("bspc", &vec!("node", "-f", node)).unwrap());
+}
+
+/**
     Returns the first node in a list of nodes. Performs 2 uwnwraps
     so it will crash if the list is empty or None
 */
@@ -148,7 +156,7 @@ fn get_node_json(node: &str) -> json::Object
     json::Json::from_str(&str_json).unwrap().as_object().unwrap().clone()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, RustcEncodable)]
 enum SplitDirection
 {
     Horizontal,
@@ -217,6 +225,20 @@ fn find_target_stack(root: &json::Object, direction: &SplitDirection) -> Vec<u64
 }
 
 /**
+    Creates a new stack with all the child nodes of the currently focused node
+*/
+fn create_new_stack(root_node_json: &json::Object) -> StackState
+{
+    let direction = &get_node_split_direction(&root_node_json);
+    let node_list = find_target_stack(&root_node_json, direction);
+
+    StackState{
+        direction: direction.clone(),
+        nodes: node_list
+    }
+}
+
+/**
     Returns the ID of a given node from its json representation
 */
 fn get_node_id(node_json: &json::Object) -> u64
@@ -225,10 +247,80 @@ fn get_node_id(node_json: &json::Object) -> u64
 }
 
 
+/**
+    Returns the a string representation of the ID of a node that can be interpreted by bspc
+    (0x...)
+*/
+fn get_node_name(id: u64) -> String
+{
+    format!("0x{:X}", id)
+}
+
+
+#[derive(Clone, RustcEncodable)]
+struct StackState 
+{
+    pub direction: SplitDirection,
+    pub nodes: Vec<u64>
+}
+
+enum FocusDirection
+{
+    Next,
+    Prev
+}
+impl StackState
+{
+    pub fn focus_next_node(&self, direction: &FocusDirection)
+    {
+        let focused_id = get_node_id(&get_node_json(&get_focused_node()));
+
+        //We assume the focused id is in the stack
+        let focused_index = self.nodes.binary_search(&focused_id).unwrap();
+
+        let target_index = focused_index as i64 + match *direction{
+            FocusDirection::Next => 1,
+            FocusDirection::Prev => -1
+        };
+
+        //Calculating the final index. +self.nodes.len() .. % allows wrap around when the
+        //target index is negative
+        let final_index = (target_index + self.nodes.len() as i64) % self.nodes.len() as i64;
+
+        self.focus_node_by_index(final_index as usize);
+    }
+
+    pub fn focus_node_by_index(&self, index: usize)
+    {
+        let target_node = self.nodes[index as usize];
+
+        //Make the target node take up the whole stack area. TODO: Make it *only*
+        //take up the stack area
+        node_resize(&get_node_name(target_node), ResizeDirection::Top, 0, 1000);
+        node_resize(&get_node_name(target_node), ResizeDirection::Bottom, 0, 1000);
+
+        println!("{}", self.nodes.len());
+        //Resize the rest of the nodes to the minimum size TODO: Resize only the correct direction
+        for i in (0..self.nodes.len()).filter(|i|{*i != index})
+        {
+            let node_id = self.nodes[i];
+            println!("{}", get_node_name(node_id));
+            node_resize(&get_node_name(node_id), ResizeDirection::Top, 0, -30);
+        }
+
+        //Focus the actual node
+        node_focus(&get_node_name(target_node));
+
+    }
+}
+
+
 fn main() 
 {
     let focused_json = get_node_json(&get_focused_node());
-    println!("{:?}", find_target_stack(&focused_json, &get_node_split_direction(&focused_json)));
+    let stack = create_new_stack(&focused_json);
+
+    stack.focus_node_by_index(0);
 }
 
 
@@ -236,6 +328,7 @@ fn main()
 
 
 //Loading some modules that are needed for testing
+#[cfg(test)]
 mod tests
 {
     use super::{
