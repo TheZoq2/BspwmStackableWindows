@@ -36,6 +36,9 @@ fn call_program(program_name: &str, args: &Vec<&str>) -> Result<String, String>
 //                         Bspc calls
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+    Runs bspc query -N -n $selector
+*/
 fn node_query(selector: &str) -> Option<Vec<String>>
 {
     //Bspc is weird and interprets the query "" as something other than no parameters
@@ -71,6 +74,7 @@ fn node_query(selector: &str) -> Option<Vec<String>>
     }
 }
 
+
 enum ResizeDirection
 {
     Top,
@@ -78,6 +82,9 @@ enum ResizeDirection
     Bottom,
     Right
 }
+/**
+    Tells BSPWM to resize the specified node
+*/
 fn node_resize(node: &str, direction: ResizeDirection, dx: i32, dy: i32)
 {
     let direction_str = match direction
@@ -128,56 +135,6 @@ fn get_focused_node() -> String
     node_query("").unwrap().pop().unwrap()
 }
 
-/**
-    Returns the children of a specified node. 
-    
-    If children exist, the first and second child are returned as a tuple, otherwise
-    None is returned
-*/
-fn get_children(root: &str) -> Option<(String, String)>
-{
-    let first_query_string = root.clone().to_string() + "#@1";
-    let second_query_string = root.clone().to_string() + "#@2";
-
-    let mut first_child = node_query(&first_query_string).unwrap();
-    let mut second_child = node_query(&second_query_string).unwrap();
-
-    if first_child.len() == 0
-    {
-        None
-    }
-    else
-    {
-        Some((
-                first_child.pop().unwrap(),
-                second_child.pop().unwrap()
-            ))
-    }
-}
-
-/**
-    Returns all the children of a specified node
-*/
-fn get_descendant_leaves(root: &str) -> Vec<String>
-{
-    let children = get_children(root);
-
-    //let mut result = vec!(root.to_string());
-    let mut result = vec!();
-
-    match children
-    {
-        None => {result.push(root.to_string())},
-        Some((left_child, right_child)) => {
-            println!("{} {}", left_child, right_child);
-
-            result.append(&mut get_descendant_leaves(&left_child));
-            result.append(&mut get_descendant_leaves(&right_child));
-        }
-    }
-
-    result
-}
 
 
 fn main() 
