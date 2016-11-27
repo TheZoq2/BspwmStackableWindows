@@ -78,6 +78,7 @@ fn node_query(selector: &str) -> Option<Vec<String>>
 }
 
 
+#[derive(PartialEq, Eq, Debug)]
 enum ResizeDirection
 {
     Top,
@@ -88,14 +89,14 @@ enum ResizeDirection
 /**
     Tells BSPWM to resize the specified node
 */
-fn node_resize(node: &str, direction: ResizeDirection, dx: i32, dy: i32)
+fn node_resize(node: &str, direction: &ResizeDirection, amount: i32)
 {
-    let direction_str = match direction
+    let (direction_str, dx, dy) = match *direction
     {
-        ResizeDirection::Top => "top",
-        ResizeDirection::Left => "left",
-        ResizeDirection::Bottom => "bottom",
-        ResizeDirection::Right => "right"
+        ResizeDirection::Top => ("top", 0, -amount),
+        ResizeDirection::Bottom => ("bottom", 0, amount),
+        ResizeDirection::Left => ("left", 0, -amount),
+        ResizeDirection::Right => ("right", 0, amount)
     };
 
     let program_output = call_program(
@@ -234,7 +235,8 @@ fn create_new_stack(root_node_json: &json::Object) -> StackState
 
     StackState{
         direction: direction.clone(),
-        nodes: node_list
+        nodes: node_list,
+        root: get_node_id(&root_node_json)
     }
 }
 
@@ -261,7 +263,8 @@ fn get_node_name(id: u64) -> String
 struct StackState 
 {
     pub direction: SplitDirection,
-    pub nodes: Vec<u64>
+    pub nodes: Vec<u64>,
+    pub root: u64
 }
 
 enum FocusDirection
@@ -293,24 +296,35 @@ impl StackState
     pub fn focus_node_by_index(&self, index: usize)
     {
         let target_node = self.nodes[index as usize];
+        let target_node_name = &get_node_name(target_node);
 
-        //Make the target node take up the whole stack area. TODO: Make it *only*
-        //take up the stack area
-        node_resize(&get_node_name(target_node), ResizeDirection::Top, 0, 1000);
-        node_resize(&get_node_name(target_node), ResizeDirection::Bottom, 0, 1000);
-
-        println!("{}", self.nodes.len());
-        //Resize the rest of the nodes to the minimum size TODO: Resize only the correct direction
-        for i in (0..self.nodes.len()).filter(|i|{*i != index})
+        //Getting the correct directions for the resizing
+        let resize_directions = match self.direction
         {
-            let node_id = self.nodes[i];
-            println!("{}", get_node_name(node_id));
-            node_resize(&get_node_name(node_id), ResizeDirection::Top, 0, -30);
+            SplitDirection::Horizontal => (ResizeDirection::Top, ResizeDirection::Bottom),
+            _ => (ResizeDirection::Right, ResizeDirection::Left)
+        };
+
+        //Reize the focused node to take up the whole space
+        //This is done by resizing by a lot one time for each node before and after the target node
+        for _ in 0..index
+        {
+            //Grow up or left
+            node_resize(target_node_name, &resize_directions.0, 1000);
+        }
+        for _ in index+1 .. self.nodes.len()
+        {
+            //Grow down or right
+            node_resize(target_node_name, &resize_directions.1, 1000);
         }
 
+
+        for node in &self.nodes
+        {
+            println!("0x{:X}", node);
+        }
         //Focus the actual node
         node_focus(&get_node_name(target_node));
-
     }
 }
 
@@ -320,7 +334,7 @@ fn main()
     let focused_json = get_node_json(&get_focused_node());
     let stack = create_new_stack(&focused_json);
 
-    stack.focus_node_by_index(0);
+    stack.focus_node_by_index(3);
 }
 
 
