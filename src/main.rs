@@ -258,16 +258,17 @@ fn get_node_name(id: u64) -> String
     format!("0x{:X}", id)
 }
 
-/**
-    Returns the list of directions you have to take from a node
-    to a descendant
-*/
+#[derive(Debug, Eq, PartialEq)]
 enum Children
 {
     First,
     Second
 }
-fn find_direction_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
+/**
+    Returns the list of directions you have to take from a node
+    to a descendant
+*/
+fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
 {
     let node_children = get_node_children(root);
     if get_node_id(root) == target
@@ -281,18 +282,18 @@ fn find_direction_to_node(root: &json::Object, target: u64) -> Option<Vec<Childr
     else
     {
         let (first_child, second_child) = node_children.unwrap();
-        let direction_to_first = find_direction_to_node(&first_child, target);
-        let direction_to_second = find_direction_to_node(&second_child, target);
+        let direction_to_first = find_path_to_node(&first_child, target);
+        let direction_to_second = find_path_to_node(&second_child, target);
 
         match (direction_to_first, direction_to_second)
         {
             (None, None) => None,
             (Some(mut path), _) => {
-                path.push(Children::First);
+                path.insert(0, Children::First);
                 return Some(path);
             },
             (_, Some(mut path)) => {
-                path.push(Children::Second);
+                path.insert(0, Children::Second);
                 return Some(path);
             }
         }
@@ -300,6 +301,30 @@ fn find_direction_to_node(root: &json::Object, target: u64) -> Option<Vec<Childr
 }
 
 
+/**
+    Counts the amount of children that a node has
+*/
+fn count_node_children(root: &json::Object) -> u64
+{
+    let children = get_node_children(root);
+
+    match children
+    {
+        None => 1,
+        Some(children) =>
+        {
+            //Split the children tuple
+            let (first,second) = children;
+
+            count_node_children(&first) + count_node_children(&second)
+        }
+    }
+}
+
+
+/**
+    Struct that keeps track of a window stack
+*/
 #[derive(Clone, RustcEncodable)]
 struct StackState 
 {
@@ -334,10 +359,23 @@ impl StackState
         self.focus_node_by_index(final_index as usize);
     }
 
+    /**
+        Focus a node with the specified index in the stack. 
+    */
     pub fn focus_node_by_index(&self, index: usize)
     {
         let target_node = self.nodes[index as usize];
-        let target_node_name = &get_node_name(target_node);
+
+        self.focus_node_by_id(target_node);
+    }
+
+    fn focus_node_by_id(&self, id: u64)
+    {
+        let target_node_name = &get_node_name(self.root);
+        let root_json = &get_node_json(target_node_name);
+
+        //Finding the 'path' to the target node
+        let path = find_path_to_node(root_json, id);
 
         //Getting the correct directions for the resizing
         let resize_directions = match self.direction
@@ -346,26 +384,44 @@ impl StackState
             _ => (ResizeDirection::Right, ResizeDirection::Left)
         };
 
-        //Reize the focused node to take up the whole space
-        //This is done by resizing by a lot one time for each node before and after the target node
-        for _ in 0..index
+
+        fn recursion_helper(node_json: &json::Object, mut remaining_path: Vec<Children>)
         {
-            //Grow up or left
-            node_resize(target_node_name, &resize_directions.0, 1000);
-        }
-        for _ in index+1 .. self.nodes.len()
-        {
-            //Grow down or right
-            node_resize(target_node_name, &resize_directions.1, 1000);
-        }
+
+            let current_intersection = remaining_path.pop();
 
 
-        for node in &self.nodes
-        {
-            println!("0x{:X}", node);
+            //Find which node should be traversed and which node should be 
+            let (traverse_node, balance_node) = match current_intersection
+            {
+                None => {return},
+                Some(val) => 
+                {
+                    match val
+                    {
+                        Children::First =>
+                        {
+                            let (first_child, second_child) = get_node_children(node_json).unwrap();
+                            (first_child, second_child)
+                        },
+                        Children::Second =>
+                        {
+                            let (first_child, second_child) = get_node_children(node_json).unwrap();
+                            (second_child, first_child)
+                        }
+                    }
+                }
+            };
+
+            //Balance the node that doesn't contain the target
+            println!("Balancing node");
+            
+            //Dig deeper
+            recursion_helper(&traverse_node, remaining_path);
         }
+
         //Focus the actual node
-        node_focus(&get_node_name(target_node));
+        node_focus(target_node_name);
     }
 }
 
@@ -393,6 +449,8 @@ mod tests
         get_node_id,
         find_target_stack,
         SplitDirection,
+        find_path_to_node,
+        Children,
     };
 
     use std::io::prelude::*;
@@ -444,5 +502,16 @@ mod tests
 
         let desired_ids = vec!(29475921, 4194628);
         assert_eq!(stack_test, desired_ids);
+
+
+        //Testing 'pathfinding'
+        assert_eq!(
+                find_path_to_node(&data, 29526298),
+                Some(vec!(Children::Second, Children::Second, Children::First))
+            );
+        assert_eq!(
+                find_path_to_node(&data, 0),
+                None
+            );
     }
 }
