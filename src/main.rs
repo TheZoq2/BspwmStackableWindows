@@ -258,6 +258,47 @@ fn get_node_name(id: u64) -> String
     format!("0x{:X}", id)
 }
 
+/**
+    Returns the list of directions you have to take from a node
+    to a descendant
+*/
+enum Children
+{
+    First,
+    Second
+}
+fn find_direction_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
+{
+    let node_children = get_node_children(root);
+    if get_node_id(root) == target
+    {
+        return Some(vec!())
+    }
+    else if node_children == None
+    {
+        return None
+    }
+    else
+    {
+        let (first_child, second_child) = node_children.unwrap();
+        let direction_to_first = find_direction_to_node(&first_child, target);
+        let direction_to_second = find_direction_to_node(&second_child, target);
+
+        match (direction_to_first, direction_to_second)
+        {
+            (None, None) => None,
+            (Some(mut path), _) => {
+                path.push(Children::First);
+                return Some(path);
+            },
+            (_, Some(mut path)) => {
+                path.push(Children::Second);
+                return Some(path);
+            }
+        }
+    }
+}
+
 
 #[derive(Clone, RustcEncodable)]
 struct StackState 
