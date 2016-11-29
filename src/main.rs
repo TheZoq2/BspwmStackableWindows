@@ -111,7 +111,42 @@ fn node_resize(node: &str, direction: &ResizeDirection, amount: i32)
             )
         );
 
-    println!("{}", program_output.unwrap());
+    println!("Node resize output: {}", program_output.unwrap());
+}
+
+/**
+    Sets the ratio between the first and second node
+*/
+fn node_change_ratio(node: &str, new_ratio: f32)
+{
+    let program_output = call_program(
+        "bspc",
+        &vec!(
+            "node",
+            &node,
+            "-r",
+            &format!("{}", new_ratio)
+            )
+        );
+
+    //println!("{}", program_output.unwrap());
+}
+
+/**
+    Balances the children in the specified node
+*/
+fn node_balance(node: &str)
+{
+    let program_output = call_program(
+        "bspc",
+        &vec!(
+            "node",
+            &node,
+            "-B",
+            )
+        );
+
+    println!("Balance node output {}", program_output.unwrap());
 }
 
 /**
@@ -266,7 +301,8 @@ enum Children
 }
 /**
     Returns the list of directions you have to take from a node
-    to a descendant
+    to a descendant. The list is in a reverse order so in order to walk the
+    path to the bottom node, you should pop the resulting vector
 */
 fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
 {
@@ -289,11 +325,13 @@ fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
         {
             (None, None) => None,
             (Some(mut path), _) => {
-                path.insert(0, Children::First);
+                //path.insert(0, Children::First);
+                path.push(Children::First);
                 return Some(path);
             },
             (_, Some(mut path)) => {
-                path.insert(0, Children::Second);
+                //path.insert(0, Children::Second);
+                path.push(Children::Second);
                 return Some(path);
             }
         }
@@ -321,7 +359,56 @@ fn count_node_descendant_leaves(root: &json::Object) -> u64
     }
 }
 
-const SMALL_NODE_SIZE: u64 = 30;
+fn focus_node_by_path(
+        node_json: &json::Object,
+        mut remaining_path: Vec<Children>,
+        resize_directions: &(ResizeDirection, ResizeDirection)
+    )
+{
+    let current_intersection = remaining_path.pop();
+
+    //Find which node should be traversed and which node should be balanced
+    let (should_balance_first, traverse_node, balance_node) = match current_intersection
+    {
+        None => {return},
+        Some(val) => 
+        {
+            match val
+            {
+                Children::First =>
+                {
+                    let (first_child, second_child) = get_node_children(node_json).unwrap();
+                    (false, first_child, second_child)
+                },
+                Children::Second =>
+                {
+                    let (first_child, second_child) = get_node_children(node_json).unwrap();
+                    (true, second_child, first_child)
+                }
+            }
+        }
+    };
+
+    //Calculate the ratio that we need to change the current node to
+    let balance_node_size = 0.05 * count_node_descendant_leaves(&balance_node) as f32;
+
+    let ratio = match should_balance_first
+    {
+        true => balance_node_size,
+        false => 1. - balance_node_size
+    };
+
+    //Get the names of the nodes we want to change
+    let balance_node_name = &get_node_name(get_node_id(&balance_node));
+    let current_node_name = get_node_name(get_node_id(node_json));
+
+    //Apply the transformations
+    node_change_ratio(&current_node_name, ratio);
+    node_balance(&balance_node_name);
+
+    //Dig deeper
+    focus_node_by_path(&traverse_node, remaining_path, resize_directions);
+}
 
 /**
     Struct that keeps track of a window stack
@@ -372,60 +459,6 @@ impl StackState
 
     fn focus_node_by_id(&self, id: u64)
     {
-
-
-        fn recursion_helper(
-                node_json: &json::Object,
-                mut remaining_path: Vec<Children>,
-                resize_directions: (SplitDirection, SplitDirection)
-            )
-        {
-            let current_intersection = remaining_path.pop();
-
-
-            //Find which node should be traversed and which node should be 
-            let (should_balance_first, traverse_node, balance_node) = match current_intersection
-            {
-                None => {return},
-                Some(val) => 
-                {
-                    match val
-                    {
-                        Children::First =>
-                        {
-                            let (first_child, second_child) = get_node_children(node_json).unwrap();
-                            (false, first_child, second_child)
-                        },
-                        Children::Second =>
-                        {
-                            let (first_child, second_child) = get_node_children(node_json).unwrap();
-                            (true, second_child, first_child)
-                        }
-                    }
-                }
-            };
-
-            //Balance the node that doesn't contain the target
-            let node_size = count_node_descendant_leaves(&balance_node) * SMALL_NODE_SIZE;
-
-            let balance_node_name = &get_node_name(&get_node_id(&balance_node));
-
-            //If the first child should be resized, the bottom should be dragged,
-            //otherwise the top
-            let resize_direction = match should_balance_first
-            {
-                true => resize_directions.0,
-                false => resize_directions.1
-            };
-
-            //Set the node to a tiny size
-            node_resize(balance_node_name, resize_direction, -1000);
-            node_resize(balance_node_name, resize_direction, node_size);
-
-            //Dig deeper
-            recursion_helper(&traverse_node, remaining_path);
-        };
-
         let target_node_name = &get_node_name(self.root);
         let root_json = &get_node_json(target_node_name);
 
@@ -439,11 +472,12 @@ impl StackState
             _ => (ResizeDirection::Right, ResizeDirection::Left)
         };
 
-        recursion_helper(root_json, path.unwrap(), resize_directions);
+        focus_node_by_path(root_json, path.unwrap(), &resize_directions);
 
         //Focus the actual node
         node_focus(target_node_name);
     }
+
 }
 
 
@@ -452,7 +486,7 @@ fn main()
     let focused_json = get_node_json(&get_focused_node());
     let stack = create_new_stack(&focused_json);
 
-    stack.focus_node_by_index(3);
+    stack.focus_node_by_index(2);
 }
 
 
