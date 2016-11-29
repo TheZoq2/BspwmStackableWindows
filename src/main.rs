@@ -302,9 +302,9 @@ fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
 
 
 /**
-    Counts the amount of children that a node has
+    Counts the amount of descendants that a node has
 */
-fn count_node_children(root: &json::Object) -> u64
+fn count_node_descendant_leaves(root: &json::Object) -> u64
 {
     let children = get_node_children(root);
 
@@ -316,11 +316,12 @@ fn count_node_children(root: &json::Object) -> u64
             //Split the children tuple
             let (first,second) = children;
 
-            count_node_children(&first) + count_node_children(&second)
+            count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
         }
     }
 }
 
+const SMALL_NODE_SIZE: u64 = 30;
 
 /**
     Struct that keeps track of a window stack
@@ -371,6 +372,60 @@ impl StackState
 
     fn focus_node_by_id(&self, id: u64)
     {
+
+
+        fn recursion_helper(
+                node_json: &json::Object,
+                mut remaining_path: Vec<Children>,
+                resize_directions: (SplitDirection, SplitDirection)
+            )
+        {
+            let current_intersection = remaining_path.pop();
+
+
+            //Find which node should be traversed and which node should be 
+            let (should_balance_first, traverse_node, balance_node) = match current_intersection
+            {
+                None => {return},
+                Some(val) => 
+                {
+                    match val
+                    {
+                        Children::First =>
+                        {
+                            let (first_child, second_child) = get_node_children(node_json).unwrap();
+                            (false, first_child, second_child)
+                        },
+                        Children::Second =>
+                        {
+                            let (first_child, second_child) = get_node_children(node_json).unwrap();
+                            (true, second_child, first_child)
+                        }
+                    }
+                }
+            };
+
+            //Balance the node that doesn't contain the target
+            let node_size = count_node_descendant_leaves(&balance_node) * SMALL_NODE_SIZE;
+
+            let balance_node_name = &get_node_name(&get_node_id(&balance_node));
+
+            //If the first child should be resized, the bottom should be dragged,
+            //otherwise the top
+            let resize_direction = match should_balance_first
+            {
+                true => resize_directions.0,
+                false => resize_directions.1
+            };
+
+            //Set the node to a tiny size
+            node_resize(balance_node_name, resize_direction, -1000);
+            node_resize(balance_node_name, resize_direction, node_size);
+
+            //Dig deeper
+            recursion_helper(&traverse_node, remaining_path);
+        };
+
         let target_node_name = &get_node_name(self.root);
         let root_json = &get_node_json(target_node_name);
 
@@ -384,41 +439,7 @@ impl StackState
             _ => (ResizeDirection::Right, ResizeDirection::Left)
         };
 
-
-        fn recursion_helper(node_json: &json::Object, mut remaining_path: Vec<Children>)
-        {
-
-            let current_intersection = remaining_path.pop();
-
-
-            //Find which node should be traversed and which node should be 
-            let (traverse_node, balance_node) = match current_intersection
-            {
-                None => {return},
-                Some(val) => 
-                {
-                    match val
-                    {
-                        Children::First =>
-                        {
-                            let (first_child, second_child) = get_node_children(node_json).unwrap();
-                            (first_child, second_child)
-                        },
-                        Children::Second =>
-                        {
-                            let (first_child, second_child) = get_node_children(node_json).unwrap();
-                            (second_child, first_child)
-                        }
-                    }
-                }
-            };
-
-            //Balance the node that doesn't contain the target
-            println!("Balancing node");
-            
-            //Dig deeper
-            recursion_helper(&traverse_node, remaining_path);
-        }
+        recursion_helper(root_json, path.unwrap(), resize_directions);
 
         //Focus the actual node
         node_focus(target_node_name);
@@ -451,6 +472,7 @@ mod tests
         SplitDirection,
         find_path_to_node,
         Children,
+        count_node_descendant_leaves
     };
 
     use std::io::prelude::*;
@@ -513,5 +535,7 @@ mod tests
                 find_path_to_node(&data, 0),
                 None
             );
+
+        assert_eq!(count_node_descendant_leaves(&data), 6);
     }
 }
