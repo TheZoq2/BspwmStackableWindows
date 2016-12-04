@@ -37,7 +37,6 @@ impl SendableMessage<TestResponse> for TestMessage
 }
 
 
-
 /**
     Connects to a remote tcp socket, sends a message, waits for a reply
     and returns that reply
@@ -80,4 +79,14 @@ mod json_socket_tests
 
         assert_eq!(get_reply_to_message(msg).x, 10);
     }
+}
+
+
+/**
+    Starts a TCP listener that waits for incomming connections, read what they have to say
+    and return a message
+*/
+pub fn start_tcp_listener(port: u16)
+{
+    
 }
