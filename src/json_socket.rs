@@ -52,11 +52,13 @@ impl convert::From<json::EncoderError> for JsonHandlerError
   Replies to a single message of MsgType with a message of ReplyType using
   the reply_handler function
 */
-pub fn handle_read_reply_client<MsgType, ReplyType, Function>(reply_handler: &Function, mut stream: TcpStream)
+pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
+                (reply_handler: &Function, mut stream: InputType)
         -> JsonHandlerResult<()>
     where MsgType: Encodable + Decodable, 
           ReplyType: Encodable + Decodable,
-          Function: Fn(MsgType) -> ReplyType
+          Function: Fn(MsgType) -> ReplyType,
+          InputType: Read + Write
 {
     let mut buffer = String::new();
     stream.read_to_string(&mut buffer)?;
@@ -124,6 +126,31 @@ pub fn connect_send_read<MsgType, ReplyType>(ip: &str, port: u16, msg: MsgType)
     Ok(decoded)
 }
 
+/**
+    Sends a message to an IO stream
+*/
+pub fn send_message_read_reply<MsgType, ReplyType, IOType>(msg: MsgType, io_stream: &mut IOType)
+        -> JsonHandlerResult<ReplyType>
+    where 
+        MsgType: Encodable + Decodable, 
+        ReplyType: Encodable + Decodable,
+        IOType: Read + Write
+{
+    //Encode the message as json
+    let encoded = json::encode(&msg).unwrap();
+    let encoded_as_string = encoded.to_string();
+
+    //Send it through the socket
+    io_stream.write_all(&encoded_as_string.into_bytes())?;
+
+    //Wait for a reply
+    let mut buffer = String::new();
+    io_stream.read_to_string(&mut buffer)?;
+
+    let decoded = json::decode(&buffer)?;
+    Ok(decoded)
+}
+
 
 
 
@@ -134,23 +161,108 @@ mod json_socket_tests
 
     use std::thread;
 
+    use std::io::{Read, Write};
+    use std::io;
+
+    struct ReaderWriterDummy
+    {
+        ///Dummy buffer that is read from
+        read_buffer: Vec<u8>, 
+        ///Dummy buffer that is written to
+        write_buffer: Vec<u8>, 
+    }
+
+    impl ReaderWriterDummy
+    {
+        pub fn new(mut read_content: Vec<u8>) -> Self 
+        {
+            read_content.reverse();
+
+            ReaderWriterDummy {
+                read_buffer: read_content,
+                write_buffer: vec!()
+            }
+        }
+        fn get_written(&self) -> &Vec<u8>
+        {
+            &self.write_buffer
+        }
+    }
+
+    impl Read for ReaderWriterDummy
+    {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
+        {
+            match self.read_buffer.pop()
+            {
+                Some(val) => {
+                    buf[0] = val;
+                    Ok(1)
+                },
+                None => Ok(0)
+            }
+        }
+    }
+    impl Write for ReaderWriterDummy
+    {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize>
+        {
+            for elem in buf
+            {
+                self.write_buffer.push(*elem);
+            }
+
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()>
+        {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn meta_read_tests()
+    {
+        {
+            let mut dummy = ReaderWriterDummy::new(Vec::from("56".as_bytes()));
+
+            let mut buffer = String::new();
+            dummy.read_to_string(&mut buffer).unwrap();
+            assert_eq!(buffer, "56");
+        }
+        {
+            let mut dummy = ReaderWriterDummy::new(Vec::from("".as_bytes()));
+
+            let mut buffer = String::new();
+            dummy.read_to_string(&mut buffer).unwrap();
+            assert_eq!(buffer, "");
+        }
+    }
+
+    #[test]
+    fn meta_write_tests()
+    {
+        {
+            let mut dummy = ReaderWriterDummy::new(vec!());
+
+            let buffer = String::from("yoloswag");
+            dummy.write_all(&buffer.into_bytes()).unwrap();
+
+            let written = dummy.get_written().clone();
+
+            println!("{}", written.len());
+
+            assert_eq!(
+                    String::from_utf8(written).unwrap(), 
+                    String::from("yoloswag")
+                );
+        }
+    }
+
     #[test]
     fn repl_test()
     {
-        let port = 8912;
-
-        let test_handler = |x: i32|{x * 2};
-
-        //If panic happens here, the test will still pass. TODO
-        thread::spawn(move ||{
-            println!("Server started");
-
-            run_read_reply_server(port, test_handler).unwrap();
-        });
         
-        //Give some time for the servero to start
-        thread::sleep_ms(100);
-
-        assert!(connect_send_read::<i32, i32>("localhost", port, 5).unwrap() == 10);
     }
 }
