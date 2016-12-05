@@ -164,6 +164,8 @@ mod json_socket_tests
     use std::io::{Read, Write};
     use std::io;
 
+    use rustc_serialize::json;
+
     struct ReaderWriterDummy
     {
         ///Dummy buffer that is read from
@@ -263,6 +265,13 @@ mod json_socket_tests
     #[test]
     fn repl_test()
     {
-        
+        {
+            let json_encoded = json::encode(&56).unwrap();
+
+            //Create a dummy buffer containing 56
+            let mut dummy = ReaderWriterDummy::new(json_encoded.into_bytes());
+
+            assert!(send_message_read_reply::<i32, i32, ReaderWriterDummy>(5, &mut dummy).unwrap() == 56);
+        }
     }
 }
