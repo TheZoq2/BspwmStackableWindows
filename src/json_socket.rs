@@ -53,11 +53,11 @@ impl convert::From<json::EncoderError> for JsonHandlerError
   the reply_handler function
 */
 pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
-                (reply_handler: &Function, mut stream: InputType)
+                (mut reply_handler: &Function, mut stream: InputType)
         -> JsonHandlerResult<()>
     where MsgType: Encodable + Decodable, 
           ReplyType: Encodable + Decodable,
-          Function: Fn(MsgType) -> ReplyType,
+          Function: FnMut(MsgType) -> ReplyType,
           InputType: Read + Write
 {
     let mut buffer = String::new();
@@ -65,6 +65,8 @@ pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
 
     //Decode the message. If the message is not of the specified type, this fails.
     let decoded = json::decode(&buffer)?;
+
+    let () = reply_handler;
 
     //Run the reply handler to get a reply
     let reply = reply_handler(decoded);
@@ -273,5 +275,30 @@ mod json_socket_tests
 
             assert!(send_message_read_reply::<i32, i32, ReaderWriterDummy>(5, &mut dummy).unwrap() == 56);
         }
+
+        {
+            let response_function = |x: i32|{x * x};
+
+            let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
+
+            assert!(handle_read_reply_client(&response_function, dummy).is_ok());
+        }
+
+        {
+            let mut buffer = 0;
+            {
+                let response_function = |x|{buffer=x};
+
+                let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
+
+                handle_read_reply_client(&response_function, dummy).is_ok();
+            }
+
+            assert!(buffer == 10);
+        }
     }
 }
+
+//pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
+//                (reply_handler: &Function, mut stream: InputType)
+//        -> JsonHandlerResult<()>
