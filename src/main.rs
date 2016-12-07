@@ -112,7 +112,7 @@ impl StackState
 fn main() 
 {
     let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
-    let stack = create_new_stack(&focused_json);
+    let _ = create_new_stack(&focused_json);
 
     //stack.focus_node_by_index(3);
 }

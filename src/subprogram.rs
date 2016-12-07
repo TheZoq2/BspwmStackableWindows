@@ -27,7 +27,7 @@ pub fn call_program(program_name: &str, args: &Vec<&str>) -> Result<String, Stri
 
 
 #[cfg(test)]
-mod CallProgramTests
+mod subprogram_tests
 {
     use super::*;
 

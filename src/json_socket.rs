@@ -53,7 +53,7 @@ impl convert::From<json::EncoderError> for JsonHandlerError
   the reply_handler function
 */
 pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
-                (mut reply_handler: &Function, mut stream: InputType)
+                (ref mut reply_handler: Function, stream: &mut InputType)
         -> JsonHandlerResult<()>
     where MsgType: Encodable + Decodable, 
           ReplyType: Encodable + Decodable,
@@ -65,8 +65,6 @@ pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
 
     //Decode the message. If the message is not of the specified type, this fails.
     let decoded = json::decode(&buffer)?;
-
-    let () = reply_handler;
 
     //Run the reply handler to get a reply
     let reply = reply_handler(decoded);
@@ -94,7 +92,7 @@ pub fn run_read_reply_server<MsgType, ReplyType, Function>(port: u16, reply_hand
 
     for stream in tcp_listener.incoming()
     {
-        handle_read_reply_client(&reply_handler, stream?)?;
+        handle_read_reply_client(&reply_handler, &mut stream?)?;
     }
 
     Ok(())
@@ -161,7 +159,6 @@ mod json_socket_tests
 {
     use super::*;
 
-    use std::thread;
 
     use std::io::{Read, Write};
     use std::io;
@@ -281,17 +278,18 @@ mod json_socket_tests
 
             let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
 
-            assert!(handle_read_reply_client(&response_function, dummy).is_ok());
+            assert!(handle_read_reply_client(&response_function, &mut dummy).is_ok());
+            assert!(dummy.get_written() == &json::encode(&100).unwrap().into_bytes());
         }
 
         {
             let mut buffer = 0;
             {
-                let response_function = |x|{buffer=x};
+                let response_function = |x|{buffer = x};
 
                 let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
 
-                handle_read_reply_client(&response_function, dummy).is_ok();
+                handle_read_reply_client(response_function, &mut dummy).is_ok();
             }
 
             assert!(buffer == 10);
@@ -299,6 +297,3 @@ mod json_socket_tests
     }
 }
 
-//pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
-//                (reply_handler: &Function, mut stream: InputType)
-//        -> JsonHandlerResult<()>
