@@ -109,12 +109,53 @@ impl StackState
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+//                          Networking stuff
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, RustcEncodable, RustcDecodable)]
+enum Commands
+{
+    CreateStack,
+    IsFocusedInStack,
+    Move(bspwm::Direction)
+}
+#[derive(Debug, RustcEncodable, RustcDecodable)]
+enum CommandResponse
+{
+    Done,
+    NoStackExists,
+    EndOfStack,
+    Yes,
+    No
+}
+
 fn main() 
 {
     let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
-    let _ = create_new_stack(&focused_json);
+    let mut stack = create_new_stack(&focused_json);
 
-    //stack.focus_node_by_index(3);
+    let command_handler = |command: Commands|
+    {
+        match command
+        {
+            Commands::CreateStack => {
+                println!("Creating a stack");
+                CommandResponse::Done
+            },
+            Commands::IsFocusedInStack => {
+                println!("Query for focused");
+                stack.focus_next_node(&FocusDirection::Next);
+                CommandResponse::Yes
+            }
+            Commands::Move(direction) => {
+                println!("Asked to move in direction: {:?}", direction);
+                CommandResponse::Done
+            }
+        }
+    };
+
+    json_socket::run_read_reply_server(9232, command_handler).unwrap();
 }
 
 

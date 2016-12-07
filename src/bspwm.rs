@@ -366,6 +366,15 @@ pub fn focus_node_by_path(
     focus_node_by_path(&traverse_node, remaining_path, resize_directions);
 }
 
+#[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
+pub enum Direction
+{
+    North,
+    South,
+    West,
+    East
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
