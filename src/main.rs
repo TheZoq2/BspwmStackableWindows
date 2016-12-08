@@ -9,6 +9,9 @@ use std::vec::Vec;
 mod bspwm;
 mod subprogram;
 mod json_socket;
+mod messages;
+
+use messages::{Commands, CommandResponse};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,23 +115,6 @@ impl StackState
 ////////////////////////////////////////////////////////////////////////////////
 //                          Networking stuff
 ////////////////////////////////////////////////////////////////////////////////
-
-#[derive(Debug, RustcEncodable, RustcDecodable)]
-enum Commands
-{
-    CreateStack,
-    IsFocusedInStack,
-    Move(bspwm::Direction)
-}
-#[derive(Debug, RustcEncodable, RustcDecodable)]
-enum CommandResponse
-{
-    Done,
-    NoStackExists,
-    EndOfStack,
-    Yes,
-    No
-}
 
 fn main() 
 {

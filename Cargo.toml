@@ -6,3 +6,14 @@ authors = ["TheZoq2 <frans.skarman@gmail.com>"]
 [dependencies]
 regex = "0.1"
 rustc-serialize = "0.3"
+clap = "~2.19.*"
+
+
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
