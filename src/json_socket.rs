@@ -9,16 +9,24 @@ use rustc_serialize::{json, Encodable, Decodable};
 use std::{io, result, convert};
 
 use std::io::prelude::*;
+use std;
 
 
 
+///Byte which marks the end of a json message
+const MESSAGE_END_MARKER: u8 = 1;
 
+
+////////////////////////////////////////////////////////////////////////////////
+//                          Error struct
+////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug)]
 pub enum JsonHandlerError
 {
     ReadFail(io::Error),
     DecoderError(json::DecoderError),
-    EncoderError(json::EncoderError)
+    EncoderError(json::EncoderError),
+    Utf8Error(std::string::FromUtf8Error),
 }
 pub type JsonHandlerResult<T> = result::Result<T, JsonHandlerError>;
 
@@ -46,7 +54,44 @@ impl convert::From<json::EncoderError> for JsonHandlerError
         JsonHandlerError::EncoderError(error)
     }
 }
+impl convert::From<std::string::FromUtf8Error> for JsonHandlerError
+{
+    fn from(error: std::string::FromUtf8Error) -> JsonHandlerError
+    {
+        JsonHandlerError::Utf8Error(error)
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
 
+fn read_string_from_stream_until_end_marker<T: io::Read>(mut stream: T) -> JsonHandlerResult<String>
+{
+    const BUFFER_SIZE: usize = 128;
+    let mut bytes = vec!();
+
+    'outer: loop
+    {
+        //Read one byte from the stream
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        stream.read(&mut buffer)?;
+
+        for byte in buffer.iter()
+        {
+            if *byte == MESSAGE_END_MARKER
+            {
+                break 'outer
+            }
+            bytes.push(*byte);
+        }
+    }
+
+    Ok(String::from_utf8(bytes)?)
+}
+fn string_to_bytes_with_end_marker(string: String) -> Vec<u8>
+{
+    let mut bytes = string.into_bytes();
+    bytes.push(MESSAGE_END_MARKER);
+    bytes
+}
 
 /**
   Replies to a single message of MsgType with a message of ReplyType using
@@ -111,19 +156,7 @@ pub fn connect_send_read<MsgType, ReplyType>(ip: &str, port: u16, msg: MsgType)
     let address: &str = &format!("{}:{}", ip, port);
     let mut stream = TcpStream::connect(address)?;
 
-    //Encode the message as json
-    let encoded = json::encode(&msg).unwrap();
-    let encoded_as_string = encoded.to_string();
-
-    //Send it through the socket
-    stream.write_all(&encoded_as_string.into_bytes())?;
-
-    //Wait for a reply
-    let mut buffer = String::new();
-    stream.read_to_string(&mut buffer)?;
-
-    let decoded = json::decode(&buffer)?;
-    Ok(decoded)
+    send_message_read_reply::<_, ReplyType, _>(msg, &mut stream)
 }
 
 /**
@@ -141,7 +174,7 @@ pub fn send_message_read_reply<MsgType, ReplyType, IOType>(msg: MsgType, io_stre
     let encoded_as_string = encoded.to_string();
 
     //Send it through the socket
-    io_stream.write_all(&encoded_as_string.into_bytes())?;
+    io_stream.write_all(&string_to_bytes_with_end_marker(encoded_as_string))?;
 
     //Wait for a reply
     let mut buffer = String::new();

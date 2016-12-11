@@ -2,7 +2,7 @@
 use bspwm;
 
 #[derive(Debug, RustcEncodable, RustcDecodable)]
-pub enum Commands
+pub enum Command
 {
     CreateStack,
     IsFocusedInStack,

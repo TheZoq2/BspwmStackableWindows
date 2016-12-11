@@ -11,7 +11,7 @@ mod subprogram;
 mod json_socket;
 mod messages;
 
-use messages::{Commands, CommandResponse};
+use messages::{Command, CommandResponse};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,20 +121,20 @@ fn main()
     let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
     let mut stack = create_new_stack(&focused_json);
 
-    let command_handler = |command: Commands|
+    let command_handler = |command: Command|
     {
         match command
         {
-            Commands::CreateStack => {
+            Command::CreateStack => {
                 println!("Creating a stack");
                 CommandResponse::Done
             },
-            Commands::IsFocusedInStack => {
+            Command::IsFocusedInStack => {
                 println!("Query for focused");
                 stack.focus_next_node(&FocusDirection::Next);
                 CommandResponse::Yes
             }
-            Commands::Move(direction) => {
+            Command::Move(direction) => {
                 println!("Asked to move in direction: {:?}", direction);
                 CommandResponse::Done
             }
