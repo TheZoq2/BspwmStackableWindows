@@ -63,7 +63,7 @@ impl convert::From<std::string::FromUtf8Error> for JsonHandlerError
 }
 ////////////////////////////////////////////////////////////////////////////////
 
-fn read_string_from_stream_until_end_marker<T: io::Read>(mut stream: T) -> JsonHandlerResult<String>
+fn read_string_from_stream_until_end_marker<T: io::Read>(stream: &mut T) -> JsonHandlerResult<String>
 {
     const BUFFER_SIZE: usize = 128;
     let mut bytes = vec!();
@@ -105,8 +105,8 @@ pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
           Function: FnMut(MsgType) -> ReplyType,
           InputType: Read + Write
 {
-    let mut buffer = String::new();
-    stream.read_to_string(&mut buffer)?;
+    //stream.read_to_string(&mut buffer)?;
+    let buffer = read_string_from_stream_until_end_marker(stream)?;
 
     //Decode the message. If the message is not of the specified type, this fails.
     let decoded = json::decode(&buffer)?;
@@ -116,7 +116,8 @@ pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
 
     //Encode the result and send it back
     let encoded = json::encode(&reply)?;
-    stream.write_all(&encoded.into_bytes())?;
+    //stream.write_all(&encoded.into_bytes())?;
+    stream.write(&string_to_bytes_with_end_marker(encoded))?;
 
     Ok(())
 }
@@ -178,7 +179,8 @@ pub fn send_message_read_reply<MsgType, ReplyType, IOType>(msg: MsgType, io_stre
 
     //Wait for a reply
     let mut buffer = String::new();
-    io_stream.read_to_string(&mut buffer)?;
+    //io_stream.read_to_string(&mut buffer)?;
+    read_string_from_stream_until_end_marker(io_stream);
 
     let decoded = json::decode(&buffer)?;
     Ok(decoded)
@@ -191,6 +193,8 @@ pub fn send_message_read_reply<MsgType, ReplyType, IOType>(msg: MsgType, io_stre
 mod json_socket_tests
 {
     use super::*;
+    use super::MESSAGE_END_MARKER;
+    use super::string_to_bytes_with_end_marker;
 
 
     use std::io::{Read, Write};
@@ -295,38 +299,49 @@ mod json_socket_tests
     }
 
     #[test]
-    fn repl_test()
+    fn end_of_stream_tests()
     {
+        let mut expected = String::from("yoloswag").into_bytes();
+        expected.push(MESSAGE_END_MARKER);
+
+        assert_eq!(string_to_bytes_with_end_marker(String::from("yoloswag")), expected);
+    }
+
+    #[test]
+    fn send_read_test()
+    {
+        let json_encoded = json::encode(&56).unwrap();
+
+        //Create a dummy buffer containing 56
+        let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(json_encoded));
+
+        assert!(send_message_read_reply::<i32, i32, ReaderWriterDummy>(5, &mut dummy).unwrap() == 56);
+    }
+
+    #[test]
+    fn response_function_test()
+    {
+        let response_function = |x: i32|{x * x};
+
+        let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(json::encode(&10).unwrap()));
+
+        assert!(handle_read_reply_client(&response_function, &mut dummy).is_ok());
+        assert!(dummy.get_written() == &json::encode(&100).unwrap().into_bytes());
+    }
+
+    #[test]
+    fn modify_outer_test()
+    {
+        let mut buffer = 0;
         {
-            let json_encoded = json::encode(&56).unwrap();
-
-            //Create a dummy buffer containing 56
-            let mut dummy = ReaderWriterDummy::new(json_encoded.into_bytes());
-
-            assert!(send_message_read_reply::<i32, i32, ReaderWriterDummy>(5, &mut dummy).unwrap() == 56);
-        }
-
-        {
-            let response_function = |x: i32|{x * x};
+            let response_function = |x|{buffer = x};
 
             let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
 
-            assert!(handle_read_reply_client(&response_function, &mut dummy).is_ok());
-            assert!(dummy.get_written() == &json::encode(&100).unwrap().into_bytes());
+            handle_read_reply_client(response_function, &mut dummy).is_ok();
         }
 
-        {
-            let mut buffer = 0;
-            {
-                let response_function = |x|{buffer = x};
-
-                let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
-
-                handle_read_reply_client(response_function, &mut dummy).is_ok();
-            }
-
-            assert!(buffer == 10);
-        }
+        assert!(buffer == 10);
     }
 }
 
