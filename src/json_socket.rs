@@ -326,7 +326,10 @@ mod json_socket_tests
         let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(json::encode(&10).unwrap()));
 
         assert!(handle_read_reply_client(&response_function, &mut dummy).is_ok());
-        assert!(dummy.get_written() == &json::encode(&100).unwrap().into_bytes());
+        assert!(
+                dummy.get_written() == 
+                &string_to_bytes_with_end_marker(json::encode(&100).unwrap())
+            );
     }
 
     #[test]
