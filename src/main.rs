@@ -121,12 +121,14 @@ fn main()
     let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
     let mut stack = create_new_stack(&focused_json);
 
+    let mut runs = 0;
     let command_handler = |command: Command|
     {
         match command
         {
             Command::CreateStack => {
-                println!("Creating a stack");
+                println!("Creating a stack, command {}", runs);
+                runs += 1;
                 CommandResponse::Done
             },
             Command::IsFocusedInStack => {

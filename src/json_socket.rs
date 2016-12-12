@@ -133,11 +133,11 @@ pub fn handle_read_reply_client<MsgType, ReplyType, Function, InputType>
   Creates a TCP listener that listens for messages of a certain type, and replies with messages
   of another type by running the reply_handler on those messages
  */
-pub fn run_read_reply_server<MsgType, ReplyType, Function>(port: u16, reply_handler: Function) 
+pub fn run_read_reply_server<MsgType, ReplyType, Function>(port: u16, mut reply_handler: Function) 
         -> JsonHandlerResult<()>
     where MsgType: Encodable + Decodable, 
           ReplyType: Encodable + Decodable,
-          Function: Fn(MsgType) -> ReplyType
+          Function: FnMut(MsgType) -> ReplyType
 {
     let address: &str = &format!("127.0.0.1:{}", port);
     //let tcp_listener = TcpListener::bind(&format!("127.0.0.1:80", port))?;
@@ -145,7 +145,7 @@ pub fn run_read_reply_server<MsgType, ReplyType, Function>(port: u16, reply_hand
 
     for stream in tcp_listener.incoming()
     {
-        handle_read_reply_client(&reply_handler, &mut stream?)?;
+        handle_read_reply_client(&mut reply_handler, &mut stream?)?;
     }
 
     Ok(())
