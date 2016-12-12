@@ -78,9 +78,16 @@ fn read_string_from_stream_until_end_marker<T: io::Read>(stream: &mut T) -> Json
         {
             if *byte == MESSAGE_END_MARKER
             {
-                break 'outer
+                break 'outer;
             }
-            bytes.push(*byte);
+            else if *byte != 0
+            {
+                bytes.push(*byte);
+            }
+            else
+            {
+                break;
+            }
         }
     }
 
@@ -177,10 +184,8 @@ pub fn send_message_read_reply<MsgType, ReplyType, IOType>(msg: MsgType, io_stre
     //Send it through the socket
     io_stream.write_all(&string_to_bytes_with_end_marker(encoded_as_string))?;
 
-    //Wait for a reply
-    let mut buffer = String::new();
     //io_stream.read_to_string(&mut buffer)?;
-    read_string_from_stream_until_end_marker(io_stream);
+    let buffer = read_string_from_stream_until_end_marker(io_stream)?;
 
     let decoded = json::decode(&buffer)?;
     Ok(decoded)
@@ -262,40 +267,42 @@ mod json_socket_tests
     #[test]
     fn meta_read_tests()
     {
-        {
-            let mut dummy = ReaderWriterDummy::new(Vec::from("56".as_bytes()));
+        let mut dummy = ReaderWriterDummy::new(Vec::from("56".as_bytes()));
 
-            let mut buffer = String::new();
-            dummy.read_to_string(&mut buffer).unwrap();
-            assert_eq!(buffer, "56");
-        }
-        {
-            let mut dummy = ReaderWriterDummy::new(Vec::from("".as_bytes()));
-
-            let mut buffer = String::new();
-            dummy.read_to_string(&mut buffer).unwrap();
-            assert_eq!(buffer, "");
-        }
+        let mut buffer = String::new();
+        dummy.read_to_string(&mut buffer).unwrap();
+        assert_eq!(buffer, "56");
     }
 
     #[test]
-    fn meta_write_tests()
+    fn meta_write_test()
     {
-        {
-            let mut dummy = ReaderWriterDummy::new(vec!());
+        let mut dummy = ReaderWriterDummy::new(vec!());
 
-            let buffer = String::from("yoloswag");
-            dummy.write_all(&buffer.into_bytes()).unwrap();
+        let buffer = String::from("yoloswag");
+        dummy.write_all(&buffer.into_bytes()).unwrap();
 
-            let written = dummy.get_written().clone();
+        let written = dummy.get_written().clone();
 
-            println!("{}", written.len());
+        println!("{}", written.len());
 
-            assert_eq!(
-                    String::from_utf8(written).unwrap(), 
-                    String::from("yoloswag")
-                );
-        }
+        assert_eq!(
+                String::from_utf8(written).unwrap(), 
+                String::from("yoloswag")
+            );
+    }
+
+    #[test]
+    fn meta_read_end_of_file()
+    {
+        let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(String::from("yolo")));
+
+        let mut expected = String::from("yolo").into_bytes();
+        expected.push(MESSAGE_END_MARKER);
+
+        let mut buffer = vec!();
+        dummy.read_to_end(&mut buffer).unwrap();
+        assert_eq!(buffer, expected);
     }
 
     #[test]
@@ -321,7 +328,9 @@ mod json_socket_tests
     #[test]
     fn response_function_test()
     {
-        let response_function = |x: i32|{x * x};
+        let response_function = |x: i32|{
+            x * x
+        };
 
         let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(json::encode(&10).unwrap()));
 
@@ -339,7 +348,7 @@ mod json_socket_tests
         {
             let response_function = |x|{buffer = x};
 
-            let mut dummy = ReaderWriterDummy::new(json::encode(&10).unwrap().into_bytes());
+            let mut dummy = ReaderWriterDummy::new(string_to_bytes_with_end_marker(json::encode(&10).unwrap()));
 
             handle_read_reply_client(response_function, &mut dummy).is_ok();
         }
