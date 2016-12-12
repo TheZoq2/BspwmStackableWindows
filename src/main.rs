@@ -121,23 +121,23 @@ fn main()
     let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
     let mut stack = create_new_stack(&focused_json);
 
-    let mut runs = 0;
     let command_handler = |command: Command|
     {
         match command
         {
             Command::CreateStack => {
-                println!("Creating a stack, command {}", runs);
-                runs += 1;
+                stack = create_new_stack(&bspwm::get_node_json(&bspwm::get_focused_node()));
+                println!("creating stack");
                 CommandResponse::Done
             },
             Command::IsFocusedInStack => {
                 println!("Query for focused");
-                stack.focus_next_node(&FocusDirection::Next);
                 CommandResponse::Yes
             }
             Command::Move(direction) => {
                 println!("Asked to move in direction: {:?}", direction);
+                stack.focus_node_by_id(0);
+                //stack.focus_next_node(&direction);
                 CommandResponse::Done
             }
         }

@@ -16,6 +16,22 @@ use json_socket::connect_send_read;
 
 use clap::{App, Arg, SubCommand};
 
+
+fn direction_from_string(string: &str) -> Result<bspwm::Direction, String>
+{
+    match string.to_lowercase().as_str()
+    {
+        "north" => Ok(bspwm::Direction::North),
+        "south" => Ok(bspwm::Direction::South),
+        "east"  => Ok(bspwm::Direction::East),
+        "west"  => Ok(bspwm::Direction::West),
+        other => Err(String::from(other))
+    }
+}
+
+/**
+    Tries to send a message to the server
+ */
 fn try_send_message(command: Command) -> Option<CommandResponse>
 {
     match connect_send_read::<_, CommandResponse>("localhost", 9232, command)
@@ -28,19 +44,54 @@ fn try_send_message(command: Command) -> Option<CommandResponse>
     }
 }
 
+/**
+    Handles responses from the server where the expected output is Command::Done
+ */
+fn handle_done_fail_response(response: Option<CommandResponse>, ok_msg: &str)
+{
+    match response
+    {
+        Some(CommandResponse::Done) => {
+            println!("{}", ok_msg);
+        },
+        Some(other) => {
+            println!("Server replied unexpectedly. Expected Done, got {:?}", other);
+        }
+        None => {}
+    }
+}
+
 fn do_create_stack()
 {
     let response = try_send_message(Command::CreateStack);
 
-    match response
+    handle_done_fail_response(response, "Stack created successfully");
+}
+
+fn do_move(direction: bspwm::Direction)
+{
+    let response = try_send_message(Command::Move(direction));
+
+    handle_done_fail_response(response, "Move complete");
+}
+
+
+fn handle_stack_move(subcommand: Option<&str>)
+{
+    match subcommand
     {
-        Some(CommandResponse::Done) => {
-            println!("Stack created sucessfully");
+        Some(direction) =>
+        {
+            match direction_from_string(direction)
+            {
+                Ok(val) => do_move(val),
+                Err(val) => println!("Invalid move direction: {}", val)
+            }
         },
-        Some(other) => {
-            println!("Server replied unexpectedly to create stack request. Expected Done, got {:?}", other);
+        None =>
+        {
+            println!("Focus requires a direction")
         }
-        None => {}
     }
 }
 
@@ -48,21 +99,37 @@ pub fn main()
 {
     let stack_subcommand = SubCommand::with_name("stack")
         .about("controls stacks")
-        .arg(Arg::with_name("create")
-            .help("Create a new stack rooted at the currently focused node"));
+        .arg(Arg::with_name("command")
+            .required(true)
+            .help("Primary command. {create, move}"))
+        .arg(Arg::with_name("parameters")
+            .help("Additional parameters to the comand"));
 
     let arg_parser = App::new("stack_client")
         .about("Client for bspwm stackable windows")
-        .arg(Arg::with_name("arg1"))
         .subcommand(stack_subcommand);
 
     let matches = arg_parser.get_matches();
 
     if let Some(matches) = matches.subcommand_matches("stack")
     {
-        if matches.is_present("create")
+        if matches.is_present("command")
         {
-            do_create_stack();
+            //do_create_stack();
+            let command = matches.value_of("command").unwrap();
+
+            match command
+            {
+                "create" => {
+                    do_create_stack();
+                },
+                "focus" => {
+                    handle_stack_move(matches.value_of("parameters"))
+                },
+                other => {
+                    println!("unexpected stack command: {}", other);
+                }
+            }
         }
         else
         {
