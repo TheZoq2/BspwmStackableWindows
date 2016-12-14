@@ -372,7 +372,7 @@ pub fn focus_node_by_path(
 }
 
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
-pub enum Direction
+pub enum CardinalDirection
 {
     North,
     South,

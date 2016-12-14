@@ -6,7 +6,7 @@ pub enum Command
 {
     CreateStack,
     IsFocusedInStack,
-    Move(bspwm::Direction)
+    Move(bspwm::CardinalDirection)
 }
 #[derive(Debug, RustcEncodable, RustcDecodable)]
 pub enum CommandResponse

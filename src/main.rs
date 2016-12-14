@@ -45,6 +45,7 @@ fn create_new_stack(root_node_json: &json::Object) -> StackState
     }
 }
 
+#[derive(Debug)]
 enum FocusDirection
 {
     Next,
@@ -132,10 +133,35 @@ impl StackState
     }
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-//                          Networking stuff
-////////////////////////////////////////////////////////////////////////////////
+/**
+    Converts from cardinal directions (north, south, west, east) to FocusDirections based on 
+    a split direction
+ */
+fn cardinal_to_focus_direction(cardinal: &bspwm::CardinalDirection, split: &bspwm::SplitDirection) 
+    -> Option<FocusDirection>
+{
+    match *split
+    {
+        bspwm::SplitDirection::Horizontal => 
+        {
+            match *cardinal
+            {
+                bspwm::CardinalDirection::North => Some(FocusDirection::Prev),
+                bspwm::CardinalDirection::South => Some(FocusDirection::Next),
+                _ => None
+            }
+        }
+        bspwm::SplitDirection::Vertical => 
+        {
+            match *cardinal
+            {
+                bspwm::CardinalDirection::West => Some(FocusDirection::Prev),
+                bspwm::CardinalDirection::East => Some(FocusDirection::Next),
+                _ => None
+            }
+        }
+    }
+}
 
 fn main() 
 {
@@ -156,11 +182,19 @@ fn main()
                 CommandResponse::Yes
             }
             Command::Move(direction) => {
-                match direction
-                {
-                }
                 println!("Asked to move in direction: {:?}", direction);
-                stack.focus_node_by_index(1);
+
+                let real_direction = cardinal_to_focus_direction(&direction, &stack.direction);
+
+                match real_direction
+                {
+                    Some(dir) => {
+                        stack.focus_node_by_direction(&dir);
+                        println!("Moving {:?}", dir);
+                    },
+                    None => {}
+                }
+                //stack.focus_node_by_index(1);
                 CommandResponse::Done
             }
         }

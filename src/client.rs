@@ -17,14 +17,14 @@ use json_socket::connect_send_read;
 use clap::{App, Arg, SubCommand};
 
 
-fn direction_from_string(string: &str) -> Result<bspwm::Direction, String>
+fn direction_from_string(string: &str) -> Result<bspwm::CardinalDirection, String>
 {
     match string.to_lowercase().as_str()
     {
-        "north" => Ok(bspwm::Direction::North),
-        "south" => Ok(bspwm::Direction::South),
-        "east"  => Ok(bspwm::Direction::East),
-        "west"  => Ok(bspwm::Direction::West),
+        "north" => Ok(bspwm::CardinalDirection::North),
+        "south" => Ok(bspwm::CardinalDirection::South),
+        "east"  => Ok(bspwm::CardinalDirection::East),
+        "west"  => Ok(bspwm::CardinalDirection::West),
         other => Err(String::from(other))
     }
 }
@@ -68,7 +68,7 @@ fn do_create_stack()
     handle_done_fail_response(response, "Stack created successfully");
 }
 
-fn do_move(direction: bspwm::Direction)
+fn do_move(direction: bspwm::CardinalDirection)
 {
     let response = try_send_message(Command::Move(direction));
 
