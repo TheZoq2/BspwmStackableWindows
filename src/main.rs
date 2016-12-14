@@ -50,26 +50,49 @@ enum FocusDirection
     Next,
     Prev
 }
+/**
+    The result of a focus by direction command. Returns inner if the node is part
+    of the stack, outer if not
+ */
+#[derive(Debug)]
+enum FocusResult
+{
+    Inner,
+    Outer
+}
 impl StackState
 {
-    pub fn focus_next_node(&self, direction: &FocusDirection)
+    pub fn focus_node_by_direction(&self, direction: &FocusDirection) -> FocusResult
     {
         let focused_id = 
-                bspwm::get_node_id(&bspwm::get_node_json(&bspwm::get_focused_node()));
+                bspwm::get_node_id(&bspwm::get_node_json(bspwm::get_focused_node()));
 
-        //We assume the focused id is in the stack
-        let focused_index = self.nodes.binary_search(&focused_id).unwrap();
+        //If the currently focused node is outside the stack, we don't do anything
+        let focused_index = match self.nodes.binary_search(&focused_id)
+        {
+            Ok(val) => val,
+            Err(_) =>
+            {
+                return FocusResult::Outer
+            }
+        };
 
+        //Calculating the target index
         let target_index = focused_index as i64 + match *direction{
             FocusDirection::Next => 1,
             FocusDirection::Prev => -1
         };
 
-        //Calculating the final index. +self.nodes.len() .. % allows wrap around when the
-        //target index is negative
-        let final_index = (target_index + self.nodes.len() as i64) % self.nodes.len() as i64;
-
-        self.focus_node_by_index(final_index as usize);
+        //Focusing the node if it is inside the stack
+        if target_index >= 0 && target_index < self.nodes.len() as i64
+        {
+            self.focus_node_by_index(target_index as usize);
+            FocusResult::Inner
+        }
+        else
+        {
+            FocusResult::Outer
+        }
     }
 
     /**
@@ -84,8 +107,7 @@ impl StackState
 
     fn focus_node_by_id(&self, id: u64)
     {
-        let target_node_name = &bspwm::get_node_name(self.root);
-        let root_json = &bspwm::get_node_json(target_node_name);
+        let root_json = &bspwm::get_node_json(self.root);
 
         //Finding the 'path' to the target node
         let path = bspwm::find_path_to_node(root_json, id);
@@ -106,9 +128,8 @@ impl StackState
         bspwm::focus_node_by_path(root_json, path.unwrap(), &resize_directions);
 
         //Focus the actual node
-        bspwm::node_focus(target_node_name);
+        bspwm::node_focus(id);
     }
-
 }
 
 
@@ -118,7 +139,7 @@ impl StackState
 
 fn main() 
 {
-    let focused_json = bspwm::get_node_json(&bspwm::get_focused_node());
+    let focused_json = bspwm::get_node_json(bspwm::get_focused_node());
     let mut stack = create_new_stack(&focused_json);
 
     let command_handler = |command: Command|
@@ -126,8 +147,8 @@ fn main()
         match command
         {
             Command::CreateStack => {
-                stack = create_new_stack(&bspwm::get_node_json(&bspwm::get_focused_node()));
-                println!("creating stack");
+                stack = create_new_stack(&bspwm::get_node_json(bspwm::get_focused_node()));
+                println!("creating stack rooted at {}", stack.root);
                 CommandResponse::Done
             },
             Command::IsFocusedInStack => {
@@ -135,9 +156,11 @@ fn main()
                 CommandResponse::Yes
             }
             Command::Move(direction) => {
+                match direction
+                {
+                }
                 println!("Asked to move in direction: {:?}", direction);
-                stack.focus_node_by_id(0);
-                //stack.focus_next_node(&direction);
+                stack.focus_node_by_index(1);
                 CommandResponse::Done
             }
         }

@@ -13,7 +13,7 @@ use subprogram::call_program;
 /**
     Runs bspc query -N -n $selector
 */
-pub fn node_query(selector: &str) -> Option<Vec<String>>
+pub fn node_query(selector: &str) -> Option<Vec<u64>>
 {
     //Bspc is weird and interprets the query "" as something other than no parameters
     let mut arguments = vec!("query", "-N", "-n");
@@ -31,13 +31,14 @@ pub fn node_query(selector: &str) -> Option<Vec<String>>
     if query_check.find(&node_string) != None || node_string == "".to_string()
     {
         Some(node_string.split("\n")
-                .map( |s| //Convert the &strs to Strings
-                {
-                    String::from(s)
-                })
                 .filter(|s| //BSPWM places a \n after all results which results in a trailing result
                 {
                     s.len() != 0
+                })
+                .map( |s| //Parse as u64
+                {
+                    //Remove 0x and parse the rest as a hexadecimal number
+                    u64::from_str_radix(&s[2..], 16).unwrap()
                 })
                 .collect())
     }
@@ -123,16 +124,16 @@ pub fn node_balance(node: &str)
 /**
     Focuses on a specified node
 */
-pub fn node_focus(node: &str)
+pub fn node_focus(node: u64)
 {
-    println!("{}", call_program("bspc", &vec!("node", "-f", node)).unwrap());
+    println!("{}", call_program("bspc", &vec!("node", "-f", &format!("{}", node))).unwrap());
 }
 
 /**
     Returns the first node in a list of nodes. Performs 2 uwnwraps
     so it will crash if the list is empty or None
 */
-pub fn first_node(list: Option<Vec<String>>) -> String
+pub fn first_node(list: Option<Vec<u64>>) -> u64
 {
     list.unwrap().pop().unwrap()
 }
@@ -140,7 +141,7 @@ pub fn first_node(list: Option<Vec<String>>) -> String
 /**
     Returns the root node
 */
-pub fn get_root_node() -> String
+pub fn get_root_node() -> u64
 {
     first_node(node_query("@/"))
 }
@@ -148,17 +149,20 @@ pub fn get_root_node() -> String
 /**
     Querys bspc for the currently focused node
 */
-pub fn get_focused_node() -> String
+pub fn get_focused_node() -> u64
 {
-    node_query("").unwrap().pop().unwrap()
+    //node_query("").unwrap().pop().unwrap()
+    first_node(node_query(""))
 }
 
 /**
     Gets the subtree of node as a JSON object
 */
-pub fn get_node_json(node: &str) -> json::Object
+pub fn get_node_json(node: u64) -> json::Object
 {
-    let str_json = call_program("bspc", &vec!("query", "-T", "-n", node)).unwrap();
+    let node_str = format!("{}", node);
+
+    let str_json = call_program("bspc", &vec!("query", "-T", "-n", &node_str)).unwrap();
 
     json::Json::from_str(&str_json).unwrap().as_object().unwrap().clone()
 }
@@ -205,6 +209,7 @@ pub fn get_node_children(node_json: &json::Object) -> Option<(json::Object, json
         None => None
     }
 }
+
 
 /**
     Returns a list of nodes that can be stacked in the current root node
