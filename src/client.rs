@@ -75,6 +75,13 @@ fn do_move(direction: bspwm::CardinalDirection)
     handle_done_fail_response(response, "Move complete");
 }
 
+fn do_focus_current()
+{
+    let response = try_send_message(Command::FocusCurrent);
+
+    handle_done_fail_response(response, "Current is focused")
+}
+
 
 fn handle_stack_move(subcommand: Option<&str>)
 {
@@ -126,6 +133,9 @@ pub fn main()
                 "focus" => {
                     handle_stack_move(matches.value_of("parameters"))
                 },
+                "focus_current" => {
+                    do_focus_current();
+                }
                 other => {
                     println!("unexpected stack command: {}", other);
                 }

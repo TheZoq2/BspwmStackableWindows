@@ -166,7 +166,7 @@ fn cardinal_to_focus_direction(cardinal: &bspwm::CardinalDirection, split: &bspw
 fn main() 
 {
     let focused_json = bspwm::get_node_json(bspwm::get_focused_node());
-    let mut stack = create_new_stack(&focused_json);
+    let mut stacks = vec!();
 
     let command_handler = |command: Command|
     {
@@ -195,6 +195,13 @@ fn main()
                     None => {}
                 }
                 //stack.focus_node_by_index(1);
+                CommandResponse::Done
+            },
+            Command::FocusCurrent => {
+                println!("Focusing current window");
+
+                stack.focus_node_by_id(bspwm::get_focused_node());
+
                 CommandResponse::Done
             }
         }
