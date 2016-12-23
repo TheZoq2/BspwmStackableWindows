@@ -305,6 +305,7 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
 {
     fn tail_recursion_helper(root: &json::Object, buffer: &mut Vec<u64>)
     {
+        println!("Checking node {}", get_node_id(root));
         buffer.push(get_node_id(root));
         match get_node_children(root)
         {
@@ -313,8 +314,12 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
             {
                 let (first, second) = children;
 
+                println!("First: {}, Second: {}", get_node_id(&first), get_node_id(&second));
+
                 tail_recursion_helper(&first, buffer);
                 tail_recursion_helper(&second, buffer);
+
+                println!("len: {}", buffer.len());
             }
         }
     }
@@ -331,20 +336,19 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
 */
 pub fn count_node_descendant_leaves(root: &json::Object) -> u64
 {
-    get_node_descendants(root).len() as u64
-    //let children = get_node_children(root);
+    let children = get_node_children(root);
 
-    //match children
-    //{
-    //    None => 1,
-    //    Some(children) =>
-    //    {
-    //        //Split the children tuple
-    //        let (first,second) = children;
+    match children
+    {
+        None => 1,
+        Some(children) =>
+        {
+            //Split the children tuple
+            let (first,second) = children;
 
-    //        count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
-    //    }
-    //}
+            count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
+        }
+    }
 }
 
 pub fn focus_node_by_path(
@@ -423,7 +427,8 @@ mod tests
         SplitDirection,
         find_path_to_node,
         Children,
-        count_node_descendant_leaves
+        count_node_descendant_leaves,
+        get_node_descendants
     };
 
     use std::io::prelude::*;
@@ -481,5 +486,21 @@ mod tests
             );
 
         assert_eq!(count_node_descendant_leaves(&data), 6);
+
+        assert_eq!(get_node_descendants(&data), 
+                   vec!(
+                       4194621, 
+                       29475921, 
+                       4194628, 
+                       29538275, 
+                       4194636, 
+                       29526298,
+                       4194640,
+                       4194638,
+                       29541313,
+                       29541339,
+                       29541363,
+                    )
+                )
     }
 }
