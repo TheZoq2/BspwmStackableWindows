@@ -211,6 +211,8 @@ pub fn get_node_children(node_json: &json::Object) -> Option<(json::Object, json
 }
 
 
+
+
 /**
     Returns a list of nodes that can be stacked in the current root node
     
@@ -299,25 +301,50 @@ pub fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Childre
     }
 }
 
+pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
+{
+    fn tail_recursion_helper(root: &json::Object, buffer: &mut Vec<u64>)
+    {
+        buffer.push(get_node_id(root));
+        match get_node_children(root)
+        {
+            None => {},
+            Some(children) =>
+            {
+                let (first, second) = children;
+
+                tail_recursion_helper(&first, buffer);
+                tail_recursion_helper(&second, buffer);
+            }
+        }
+    }
+
+    let mut result = vec!();
+    
+    tail_recursion_helper(root, &mut result);
+
+    result
+}
 
 /**
     Counts the amount of descendants that a node has
 */
 pub fn count_node_descendant_leaves(root: &json::Object) -> u64
 {
-    let children = get_node_children(root);
+    get_node_descendants(root).len() as u64
+    //let children = get_node_children(root);
 
-    match children
-    {
-        None => 1,
-        Some(children) =>
-        {
-            //Split the children tuple
-            let (first,second) = children;
+    //match children
+    //{
+    //    None => 1,
+    //    Some(children) =>
+    //    {
+    //        //Split the children tuple
+    //        let (first,second) = children;
 
-            count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
-        }
-    }
+    //        count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
+    //    }
+    //}
 }
 
 pub fn focus_node_by_path(
