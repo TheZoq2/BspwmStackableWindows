@@ -132,7 +132,7 @@ impl StackState
         bspwm::node_focus(id);
     }
 
-    fn is_node_child_of_root(&self, id: u64) -> bool
+    fn contains_node(&self, id: u64) -> bool
     {
         let root_json = bspwm::get_node_json(self.root);
 
@@ -189,7 +189,7 @@ fn remove_stack_containing_node(stack_vec: &mut Vec<StackState>, id: u64) -> Com
                 |accumulator, stack|
                 {
                     let (index, mut stacks) = accumulator;
-                    if stack.is_node_child_of_root(id)
+                    if stack.contains_node(id)
                     {
                         stacks.push((index, stack));
                     }
@@ -210,7 +210,7 @@ fn remove_stack_containing_node(stack_vec: &mut Vec<StackState>, id: u64) -> Com
                     let (index, stack) = stack;
                     let (best_index, best_stack) = best_match;
 
-                    match best_stack.is_node_child_of_root(stack.root)
+                    match best_stack.contains_node(stack.root)
                     {
                         true => (index, stack),
                         false => (best_index, best_stack)
@@ -241,6 +241,12 @@ fn remove_stack_containing_node(stack_vec: &mut Vec<StackState>, id: u64) -> Com
     }
 }
 
+fn is_node_in_stacks(stacks: &Vec<StackState>, node: u64) -> bool
+{
+    stacks.iter()
+        .fold(false, |acc, stack|{acc || stack.contains_node(node)})
+}
+
 fn main() 
 {
     let mut stacks = vec!();
@@ -262,8 +268,13 @@ fn main()
                 remove_stack_containing_node(&mut stacks, focused)
             },
             Command::IsFocusedInStack => {
-                //println!("Query for focused");
-                CommandResponse::Yes
+                let focused = bspwm::get_focused_node();
+
+                match is_node_in_stacks(&stacks, focused)
+                {
+                    true => CommandResponse::Yes,
+                    false => CommandResponse::No
+                }
             },
             Command::Move(direction) => {
                 //println!("Asked to move in direction: {:?}", direction);
