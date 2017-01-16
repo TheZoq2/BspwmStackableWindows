@@ -107,13 +107,15 @@ pub fn node_change_ratio(node: &str, new_ratio: f32)
 /**
     Balances the children in the specified node
 */
-pub fn node_balance(node: &str)
+pub fn node_balance(node: u64)
 {
+    let node_name = get_node_name(node);
+
     let program_output = call_program(
         "bspc",
         &vec!(
             "node",
-            &node,
+            &node_name,
             "-B",
             )
         );
@@ -391,12 +393,11 @@ pub fn focus_node_by_path(
     };
 
     //Get the names of the nodes we want to change
-    let balance_node_name = &get_node_name(get_node_id(&balance_node));
     let current_node_name = get_node_name(get_node_id(node_json));
 
     //Apply the transformations
     node_change_ratio(&current_node_name, ratio);
-    node_balance(&balance_node_name);
+    node_balance(get_node_id(&balance_node));
 
     //Dig deeper
     focus_node_by_path(&traverse_node, remaining_path, resize_directions);

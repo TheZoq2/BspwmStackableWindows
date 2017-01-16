@@ -132,9 +132,17 @@ impl StackState
         bspwm::node_focus(id);
     }
 
-    //fn contains_node(&self, id: u64) -> bool
-    //{
-    //}
+    fn is_node_child_of_root(&self, id: u64) -> bool
+    {
+        let root_json = bspwm::get_node_json(self.root);
+
+        bspwm::get_node_descendants(&root_json).contains(&id)
+    }
+
+    fn cleanup(&self)
+    {
+        bspwm::node_balance(self.root);
+    }
 }
 
 /**
@@ -167,54 +175,123 @@ fn cardinal_to_focus_direction(cardinal: &bspwm::CardinalDirection, split: &bspw
     }
 }
 
+fn remove_stack_containing_node(stack_vec: &mut Vec<StackState>, id: u64) -> CommandResponse
+{
+    // Find all the stacks that contain the current node as a child.
+    // The stacks are stored as (index, stack) to all
+    let target_index = 
+    {
+        let (_, mut matching_stacks) = stack_vec.iter()
+            .fold(
+                (0, vec!()),
+                |accumulator, stack|
+                {
+                    let (index, mut stacks) = accumulator;
+                    if !stack.is_node_child_of_root(id)
+                    {
+                        stacks.push((index, stack));
+                    }
+                    (index + 1, stacks)
+                }
+            );
+
+        if matching_stacks.len() > 0
+        {
+            //Check which stack is at the bottom of all the stacks
+            //that contain the actual target
+            let first_match = matching_stacks.pop().unwrap();
+
+            let target = matching_stacks.into_iter().fold(
+                first_match, 
+                |best_match, stack|
+                {
+                    let (index, stack) = stack;
+                    let (best_index, best_stack) = best_match;
+
+                    match best_stack.is_node_child_of_root(stack.root)
+                    {
+                        true => (index, stack),
+                        false => (best_index, best_stack)
+                    }
+                });
+
+            let (target_index, _) = target;
+            Some(target_index)
+        }
+        else
+        {
+            println!("No stack removed");
+            None
+        }
+    };
+
+    if target_index.is_some()
+    {
+        let target_index = target_index.unwrap();
+
+        stack_vec[target_index].cleanup();
+        stack_vec.remove(target_index);
+        CommandResponse::Done
+    }
+    else
+    {
+        CommandResponse::NoStackExists
+    }
+}
+
 fn main() 
 {
-    let focused_json = bspwm::get_node_json(bspwm::get_focused_node());
-    //let mut stacks = vec!();
+    let mut stacks = vec!();
 
-    //let command_handler = |command: Command|
-    //{
-    //    match command
-    //    {
-    //        Command::CreateStack => {
-    //            let stack = create_new_stack(&bspwm::get_node_json(bspwm::get_focused_node()));
-    //            stacks.push(stack);
+    let command_handler = |command: Command|
+    {
+        match command
+        {
+            Command::CreateStack => {
+                let stack = create_new_stack(&bspwm::get_node_json(bspwm::get_focused_node()));
+                println!("creating stack rooted at {}", stack.root);
+                stacks.push(stack);
 
-    //            println!("creating stack rooted at {}", stack.root);
-    //            CommandResponse::Done
-    //        },
-    //        Command::IsFocusedInStack => {
-    //            println!("Query for focused");
-    //            CommandResponse::Yes
-    //        }
-    //        Command::Move(direction) => {
-    //            println!("Asked to move in direction: {:?}", direction);
+                CommandResponse::Done
+            },
+            Command::RemoveFocused => {
+                let focused = bspwm::get_focused_node();
 
-    //            let real_direction = cardinal_to_focus_direction(&direction, &stack.direction);
+                remove_stack_containing_node(&mut stacks, focused)
+            },
+            Command::IsFocusedInStack => {
+                //println!("Query for focused");
+                CommandResponse::Yes
+            },
+            Command::Move(direction) => {
+                //println!("Asked to move in direction: {:?}", direction);
 
-    //            match real_direction
-    //            {
-    //                Some(dir) => {
-    //                    stack.focus_node_by_direction(&dir);
-    //                    println!("Moving {:?}", dir);
-    //                },
-    //                None => {}
-    //            }
-    //            //stack.focus_node_by_index(1);
-    //            CommandResponse::Done
-    //        },
-    //        Command::FocusCurrent => {
-    //            println!("Focusing current window");
+                //let real_direction = cardinal_to_focus_direction(&direction, &stack.direction);
 
-    //            stack.focus_node_by_id(bspwm::get_focused_node());
+                //match real_direction
+                //{
+                //    Some(dir) => {
+                //        stack.focus_node_by_direction(&dir);
+                //        println!("Moving {:?}", dir);
+                //    },
+                //    None => {}
+                //}
+                //stack.focus_node_by_index(1);
+                CommandResponse::Done
+            },
+            Command::FocusCurrent => {
+                //println!("Focusing current window");
 
-    //            CommandResponse::Done
-    //        }
-    //    }
-    //};
+                //stack.focus_node_by_id(bspwm::get_focused_node());
 
-    //json_socket::run_read_reply_server(9232, command_handler).unwrap();
+                CommandResponse::Done
+            }
+        }
+    };
+
+    json_socket::run_read_reply_server(9232, command_handler).unwrap();
 }
+
 
 
 

@@ -5,6 +5,7 @@ use bspwm;
 pub enum Command
 {
     CreateStack,
+    RemoveFocused,
     IsFocusedInStack,
     Move(bspwm::CardinalDirection),
     FocusCurrent

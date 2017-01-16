@@ -68,6 +68,13 @@ fn do_create_stack()
     handle_done_fail_response(response, "Stack created successfully");
 }
 
+fn do_remove_focused_stack()
+{
+    let response = try_send_message(Command::RemoveFocused);
+
+    handle_done_fail_response(response, "Stack removed")
+}
+
 fn do_move(direction: bspwm::CardinalDirection)
 {
     let response = try_send_message(Command::Move(direction));
@@ -81,6 +88,7 @@ fn do_focus_current()
 
     handle_done_fail_response(response, "Current is focused")
 }
+
 
 
 fn handle_stack_move(subcommand: Option<&str>)
@@ -135,7 +143,11 @@ pub fn main()
                 },
                 "focus_current" => {
                     do_focus_current();
-                }
+                },
+                "remove" => 
+                {
+                    do_remove_focused_stack()
+                },
                 other => {
                     println!("unexpected stack command: {}", other);
                 }
