@@ -136,7 +136,9 @@ impl StackState
     {
         let root_json = bspwm::get_node_json(self.root);
 
-        bspwm::get_node_descendants(&root_json).contains(&id)
+        let descendants = bspwm::get_node_descendants(&root_json);
+        println!("Looking for node {} in {:?}", id, descendants);
+        descendants.contains(&id)
     }
 
     fn cleanup(&self)
@@ -187,7 +189,7 @@ fn remove_stack_containing_node(stack_vec: &mut Vec<StackState>, id: u64) -> Com
                 |accumulator, stack|
                 {
                     let (index, mut stacks) = accumulator;
-                    if !stack.is_node_child_of_root(id)
+                    if stack.is_node_child_of_root(id)
                     {
                         stacks.push((index, stack));
                     }
