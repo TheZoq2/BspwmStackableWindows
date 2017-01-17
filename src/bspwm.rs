@@ -307,7 +307,6 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
 {
     fn tail_recursion_helper(root: &json::Object, buffer: &mut Vec<u64>)
     {
-        println!("Checking node {}", get_node_id(root));
         buffer.push(get_node_id(root));
         match get_node_children(root)
         {
@@ -316,12 +315,8 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
             {
                 let (first, second) = children;
 
-                println!("First: {}, Second: {}", get_node_id(&first), get_node_id(&second));
-
                 tail_recursion_helper(&first, buffer);
                 tail_recursion_helper(&second, buffer);
-
-                println!("len: {}", buffer.len());
             }
         }
     }
