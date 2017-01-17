@@ -148,7 +148,7 @@ pub fn get_root_node() -> u64
 }
 
 /**
-  Querys bspc to check if a node exists
+  Checks if a node is a descendant of another node based on its json object
 */
 pub fn is_node_descendant(parent: &json::Object, child: u64) -> bool
 {
@@ -262,7 +262,7 @@ pub fn traverse_node<T, InnerFn, LeafFn>(
             , inner_fn: &mut InnerFn
             , leaf_fn: &mut LeafFn
         ) -> T
-    where InnerFn: Fn(&json::Object, Option<T>, Option<T>) -> T
+    where InnerFn: Fn(&json::Object, Option<(T, T)>) -> T
         , LeafFn: Fn(&json::Object) -> T
 {
     match get_node_children(node_json)
