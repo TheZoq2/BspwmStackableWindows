@@ -30,21 +30,6 @@ struct StackState
     pub root: u64
 }
 
-/**
-    Creates a new stack with all the child nodes of the currently focused node
-*/
-fn create_new_stack(root_node_json: &json::Object) -> StackState
-{
-    let direction = &bspwm::get_node_split_direction(&root_node_json);
-    let node_list = bspwm::find_target_stack(&root_node_json, direction);
-
-    StackState{
-        direction: direction.clone(),
-        nodes: node_list,
-        root: bspwm::get_node_id(&root_node_json)
-    }
-}
-
 #[derive(Debug)]
 enum FocusDirection
 {
@@ -63,6 +48,22 @@ enum FocusResult
 }
 impl StackState
 {
+    /**
+      Creates a new stack containing all the child nodes of the current focused
+      node
+    */
+    pub fn new(root_json: &json::Object) -> StackState
+    {
+        let direction = &bspwm::get_node_split_direction(&root_json);
+        let node_list = bspwm::find_target_stack(&root_json, direction);
+
+        StackState{
+            direction: direction.clone(),
+            nodes: node_list,
+            root: bspwm::get_node_id(&root_json)
+        }
+    }
+
     pub fn focus_node_by_direction(&self, direction: &FocusDirection) -> FocusResult
     {
         let focused_id = 
@@ -106,12 +107,24 @@ impl StackState
         self.focus_node_by_id(target_node);
     }
 
+    /**
+      Makes the speicifed node focused if it is part of the stack. If not,
+      do nothing
+
+      TODO: If a parent node of the specified node is part of the stack, focus
+      it  instead
+    */
     fn focus_node_by_id(&self, id: u64)
     {
         let root_json = &bspwm::get_node_json(self.root);
 
         //Finding the 'path' to the target node
         let path = bspwm::find_path_to_node(root_json, id);
+
+        if path.is_none()
+        {
+            return
+        }
 
         //Getting the correct directions for the resizing
         let resize_directions = match self.direction
@@ -151,7 +164,8 @@ impl StackState
     Converts from cardinal directions (north, south, west, east) to FocusDirections based on 
     a split direction
  */
-fn cardinal_to_focus_direction(cardinal: &bspwm::CardinalDirection, split: &bspwm::SplitDirection) 
+fn cardinal_to_focus_direction
+            (cardinal: &bspwm::CardinalDirection, split: &bspwm::SplitDirection) 
     -> Option<FocusDirection>
 {
     match *split
@@ -256,7 +270,7 @@ fn main()
         match command
         {
             Command::CreateStack => {
-                let stack = create_new_stack(&bspwm::get_node_json(bspwm::get_focused_node()));
+                let stack = StackState::new(&bspwm::get_node_json(bspwm::get_focused_node()));
                 println!("creating stack rooted at {}", stack.root);
                 stacks.push(stack);
 
@@ -276,27 +290,15 @@ fn main()
                     false => CommandResponse::No
                 }
             },
-            Command::Move(direction) => {
-                //println!("Asked to move in direction: {:?}", direction);
-
-                //let real_direction = cardinal_to_focus_direction(&direction, &stack.direction);
-
-                //match real_direction
-                //{
-                //    Some(dir) => {
-                //        stack.focus_node_by_direction(&dir);
-                //        println!("Moving {:?}", dir);
-                //    },
-                //    None => {}
-                //}
-                //stack.focus_node_by_index(1);
-                CommandResponse::Done
-            },
             Command::FocusCurrent => {
-                //println!("Focusing current window");
+                for stack in &stacks
+                {
+                    stack.focus_node_by_id(bspwm::get_focused_node())
+                }
 
-                //stack.focus_node_by_id(bspwm::get_focused_node());
-
+                CommandResponse::Done
+            }
+            Command::UpdateStacks => {
                 CommandResponse::Done
             }
         }

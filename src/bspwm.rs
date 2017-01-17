@@ -49,7 +49,6 @@ pub fn node_query(selector: &str) -> Option<Vec<u64>>
     }
 }
 
-
 #[derive(PartialEq, Eq, Debug)]
 pub enum ResizeDirection
 {
@@ -149,6 +148,13 @@ pub fn get_root_node() -> u64
 }
 
 /**
+  Querys bspc to check if a node exists
+*/
+pub fn node_exists(id: &str)
+{
+    
+}
+/**
     Querys bspc for the currently focused node
 */
 pub fn get_focused_node() -> u64
@@ -216,10 +222,10 @@ pub fn get_node_children(node_json: &json::Object) -> Option<(json::Object, json
 
 
 /**
-    Returns a list of nodes that can be stacked in the current root node
-    
-    It will traverse the tree until it either finds a leaf node, or a node that 
-    is split the oposite direction of the stack
+  Returns a list of nodes that can be stacked in the current root node
+  
+  It will traverse the tree until it either finds a leaf node, or a node that 
+  is split the oposite direction of the stack
 */
 pub fn find_target_stack(root: &json::Object, direction: &SplitDirection) -> Vec<u64>
 {
@@ -248,10 +254,36 @@ pub fn get_node_id(node_json: &json::Object) -> u64
     node_json.get("id").unwrap().as_u64().unwrap()
 }
 
+/**
+*/
+pub fn traverse_node<T, InnerFn, LeafFn>(
+            node_json: &json::Object
+            , inner_fn: &mut InnerFn
+            , leaf_fn: &mut LeafFn
+        ) -> T
+    where InnerFn: FnMut(&json::Object, Option<T>, Option<T>) -> T
+        , LeafFn: FnMut(&json::Object) -> T
+{
+    match get_node_children(node_json)
+    {
+        Some((left, right)) => 
+        {
+            let left_result = Some(traverse_node(&left, inner_fn, leaf_fn));
+            let right_result = Some(traverse_node(&right, inner_fn, leaf_fn));
+
+            inner_fn(node_json, left_result, right_result)
+        }
+        None =>
+        {
+            leaf_fn(node_json)
+        }
+    }
+}
+
 
 /**
-    Returns the a string representation of the ID of a node that can be interpreted by bspc
-    (0x...)
+  Returns the a string representation of the ID of a node that can be interpreted by bspc
+  (0x...)
 */
 pub fn get_node_name(id: u64) -> String
 {

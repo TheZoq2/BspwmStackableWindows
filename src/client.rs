@@ -75,13 +75,6 @@ fn do_remove_focused_stack()
     handle_done_fail_response(response, "Stack removed")
 }
 
-fn do_move(direction: bspwm::CardinalDirection)
-{
-    let response = try_send_message(Command::Move(direction));
-
-    handle_done_fail_response(response, "Move complete");
-}
-
 fn do_focus_current()
 {
     let response = try_send_message(Command::FocusCurrent);
@@ -89,26 +82,6 @@ fn do_focus_current()
     handle_done_fail_response(response, "Current is focused")
 }
 
-
-
-fn handle_stack_move(subcommand: Option<&str>)
-{
-    match subcommand
-    {
-        Some(direction) =>
-        {
-            match direction_from_string(direction)
-            {
-                Ok(val) => do_move(val),
-                Err(val) => println!("Invalid move direction: {}", val)
-            }
-        },
-        None =>
-        {
-            println!("Focus requires a direction")
-        }
-    }
-}
 
 pub fn main()
 {
@@ -137,9 +110,6 @@ pub fn main()
             {
                 "create" => {
                     do_create_stack();
-                },
-                "focus" => {
-                    handle_stack_move(matches.value_of("parameters"))
                 },
                 "focus_current" => {
                     do_focus_current();
