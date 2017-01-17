@@ -150,10 +150,11 @@ pub fn get_root_node() -> u64
 /**
   Querys bspc to check if a node exists
 */
-pub fn node_exists(id: &str)
+pub fn is_node_descendant(parent: &json::Object, child: u64) -> bool
 {
-    
+    get_node_descendants(parent).contains(&child)
 }
+
 /**
     Querys bspc for the currently focused node
 */
@@ -261,8 +262,8 @@ pub fn traverse_node<T, InnerFn, LeafFn>(
             , inner_fn: &mut InnerFn
             , leaf_fn: &mut LeafFn
         ) -> T
-    where InnerFn: FnMut(&json::Object, Option<T>, Option<T>) -> T
-        , LeafFn: FnMut(&json::Object) -> T
+    where InnerFn: Fn(&json::Object, Option<T>, Option<T>) -> T
+        , LeafFn: Fn(&json::Object) -> T
 {
     match get_node_children(node_json)
     {
@@ -448,15 +449,16 @@ pub enum CardinalDirection
 mod tests
 {
     use super::{
-        node_query,
-        get_node_children,
-        get_node_id,
-        find_target_stack,
-        SplitDirection,
-        find_path_to_node,
-        Children,
-        count_node_descendant_leaves,
-        get_node_descendants
+        node_query
+        , get_node_children
+        , get_node_id
+        , find_target_stack
+        , SplitDirection
+        , find_path_to_node
+        , Children
+        , count_node_descendant_leaves
+        , get_node_descendants
+        , is_node_descendant
     };
 
     use std::io::prelude::*;
@@ -529,6 +531,11 @@ mod tests
                        29541339,
                        29541363,
                     )
-                )
+                );
+
+        //Check if the first child of the root is a descendant of the root
+        assert_eq!(is_node_descendant(&data, 29475921), true);
+        //Check if the child is a descendant of its parent
+        assert_eq!(is_node_descendant(&get_node_children(&data).unwrap().0, 4194621), false);
     }
 }
