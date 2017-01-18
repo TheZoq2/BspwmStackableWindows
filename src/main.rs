@@ -25,8 +25,6 @@ use messages::{Command, CommandResponse};
 #[derive(Clone, RustcEncodable)]
 struct StackState 
 {
-    pub direction: bspwm::SplitDirection,
-    pub nodes: Vec<u64>,
     pub root: u64
 }
 
@@ -54,57 +52,9 @@ impl StackState
     */
     pub fn new(root_json: &json::Object) -> StackState
     {
-        let direction = &bspwm::get_node_split_direction(&root_json);
-        let node_list = bspwm::find_target_stack(&root_json, direction);
-
         StackState{
-            direction: direction.clone(),
-            nodes: node_list,
             root: bspwm::get_node_id(&root_json)
         }
-    }
-
-    pub fn focus_node_by_direction(&self, direction: &FocusDirection) -> FocusResult
-    {
-        let focused_id = 
-                bspwm::get_node_id(&bspwm::get_node_json(bspwm::get_focused_node()));
-
-        //If the currently focused node is outside the stack, we don't do anything
-        let focused_index = match self.nodes.binary_search(&focused_id)
-        {
-            Ok(val) => val,
-            Err(_) =>
-            {
-                return FocusResult::Outer
-            }
-        };
-
-        //Calculating the target index
-        let target_index = focused_index as i64 + match *direction{
-            FocusDirection::Next => 1,
-            FocusDirection::Prev => -1
-        };
-
-        //Focusing the node if it is inside the stack
-        if target_index >= 0 && target_index < self.nodes.len() as i64
-        {
-            self.focus_node_by_index(target_index as usize);
-            FocusResult::Inner
-        }
-        else
-        {
-            FocusResult::Outer
-        }
-    }
-
-    /**
-        Focus a node with the specified index in the stack. 
-    */
-    pub fn focus_node_by_index(&self, index: usize)
-    {
-        let target_node = self.nodes[index as usize];
-
-        self.focus_node_by_id(target_node);
     }
 
     /**
@@ -126,8 +76,10 @@ impl StackState
             return
         }
 
+        let direction = bspwm::get_node_split_direction(&root_json);
+
         //Getting the correct directions for the resizing
-        let resize_directions = match self.direction
+        let resize_directions = match direction
         {
             bspwm::SplitDirection::Horizontal => 
             {
@@ -259,6 +211,31 @@ fn is_node_in_stacks(stacks: &Vec<StackState>, node: u64) -> bool
         .fold(false, |acc, stack|{acc || stack.contains_node(node)})
 }
 
+fn do_update_stacks(stacks: &mut Vec<StackState>) -> CommandResponse
+{
+    let mut stacks_to_remove = vec!();
+
+    for i in 0..stacks.len()
+    {
+        if !bspwm::get_node_exists(stacks[i].root)
+        {
+            stacks_to_remove.push(i);
+        }
+    }
+
+    //Move backwards to remove the nodes in order to avoid having to recalculate
+    //the indexes
+    stacks_to_remove.reverse();
+
+    for index in stacks_to_remove
+    {
+        stacks.remove(index);
+        println!("Removing stack {}", index);
+    }
+
+    CommandResponse::Done
+}
+
 fn main() 
 {
     let mut stacks = vec!();
@@ -297,7 +274,7 @@ fn main()
                 CommandResponse::Done
             }
             Command::UpdateStacks => {
-                CommandResponse::Done
+                do_update_stacks(&mut stacks)
             }
         }
     };

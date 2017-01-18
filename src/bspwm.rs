@@ -156,6 +156,16 @@ pub fn is_node_descendant(parent: &json::Object, child: u64) -> bool
 }
 
 /**
+  Checks wether or not a node exists
+*/
+pub fn get_node_exists(id: u64) -> bool
+{
+    let root_json = get_node_json(get_root_node());
+
+    is_node_descendant(&root_json, id)
+}
+
+/**
     Querys bspc for the currently focused node
 */
 pub fn get_focused_node() -> u64
