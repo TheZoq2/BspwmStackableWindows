@@ -82,6 +82,13 @@ fn do_focus_current()
     handle_done_fail_response(response, "Current is focused")
 }
 
+fn do_update_stacks()
+{
+    let response = try_send_message(Command::UpdateStacks);
+
+    handle_done_fail_response(response, "Stacks updated")
+}
+
 
 pub fn main()
 {
@@ -118,6 +125,10 @@ pub fn main()
                 {
                     do_remove_focused_stack()
                 },
+                "update" =>
+                {
+                    do_update_stacks()
+                }
                 other => {
                     println!("unexpected stack command: {}", other);
                 }
