@@ -256,33 +256,6 @@ pub fn get_node_id(node_json: &json::Object) -> u64
 }
 
 /**
-*/
-pub fn traverse_node<T, InnerFn, LeafFn>(
-            node_json: &json::Object
-            , inner_fn: &mut InnerFn
-            , leaf_fn: &mut LeafFn
-        ) -> T
-    where InnerFn: Fn(&json::Object, Option<T>, Option<T>) -> T
-        , LeafFn: Fn(&json::Object) -> T
-{
-    match get_node_children(node_json)
-    {
-        Some((left, right)) => 
-        {
-            let left_result = Some(traverse_node(&left, inner_fn, leaf_fn));
-            let right_result = Some(traverse_node(&right, inner_fn, leaf_fn));
-
-            inner_fn(node_json, left_result, right_result)
-        }
-        None =>
-        {
-            leaf_fn(node_json)
-        }
-    }
-}
-
-
-/**
   Returns the a string representation of the ID of a node that can be interpreted by bspc
   (0x...)
 */
