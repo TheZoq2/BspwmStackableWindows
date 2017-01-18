@@ -63,6 +63,7 @@ impl StackState
 
       TODO: If a parent node of the specified node is part of the stack, focus
       it  instead
+      TODO: Currently this focuses nodes through differing split directions
     */
     fn focus_node_by_id(&self, id: u64)
     {
