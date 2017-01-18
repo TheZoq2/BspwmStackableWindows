@@ -149,9 +149,7 @@ impl StackState
     {
         let root_json = bspwm::get_node_json(self.root);
 
-        let descendants = bspwm::get_node_descendants(&root_json);
-        println!("Looking for node {} in {:?}", id, descendants);
-        descendants.contains(&id)
+        bspwm::is_node_descendant(&root_json, id)
     }
 
     fn cleanup(&self)
