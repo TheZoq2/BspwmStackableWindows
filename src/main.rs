@@ -58,6 +58,26 @@ impl StackState
     }
 
     /**
+      Tries to focus the indexth leaf in the tree. Returns None if the index
+      is out of bounds, Some(id) where id is the id of the focused node if successfull
+    */
+    pub fn focus_leaf_by_index(&self, index: usize) -> Option<u64>
+    {
+        let leaves = bspwm::get_node_descendant_leaves(&bspwm::get_node_json(self.root));
+
+        if index < leaves.len()
+        {
+            let id = leaves[index];
+            self.focus_node_by_id(id);
+            Some(id)
+        }
+        else
+        {
+            None
+        }
+    }
+
+    /**
       Makes the speicifed node focused if it is part of the stack. If not,
       do nothing
 
@@ -247,7 +267,7 @@ fn main()
         {
             Command::CreateStack => {
                 let stack = StackState::new(&bspwm::get_node_json(bspwm::get_focused_node()));
-                println!("creating stack rooted at {}", stack.root);
+                stack.focus_leaf_by_index(0);
                 stacks.push(stack);
 
                 CommandResponse::Done
@@ -267,6 +287,8 @@ fn main()
                 }
             },
             Command::FocusCurrent => {
+                do_update_stacks(&mut stacks);
+
                 for stack in &stacks
                 {
                     stack.focus_node_by_id(bspwm::get_focused_node())

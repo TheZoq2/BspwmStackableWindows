@@ -349,17 +349,26 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
 */
 pub fn count_node_descendant_leaves(root: &json::Object) -> u64
 {
+    get_node_descendant_leaves(root).len() as u64
+}
+
+/**
+  Returns all the leaf nodes that are descendants of root
+*/
+pub fn get_node_descendant_leaves(root: &json::Object) -> Vec<u64>
+{
     let children = get_node_children(root);
 
     match children
     {
-        None => 1,
-        Some(children) =>
+        None => vec!(get_node_id(root)),
+        Some((first, second)) =>
         {
-            //Split the children tuple
-            let (first,second) = children;
+            let mut second_result = get_node_descendant_leaves(&second);
+            let mut first_result = get_node_descendant_leaves(&first);
+            first_result.append(&mut second_result);
 
-            count_node_descendant_leaves(&first) + count_node_descendant_leaves(&second)
+            first_result
         }
     }
 }
