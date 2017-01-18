@@ -7,6 +7,7 @@ authors = ["TheZoq2 <frans.skarman@gmail.com>"]
 regex = "0.1"
 rustc-serialize = "0.3"
 clap = "~2.19.*"
+notify-rust = "3.*"
 
 
 

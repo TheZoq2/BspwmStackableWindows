@@ -2,9 +2,12 @@
 
 extern crate regex;
 extern crate rustc_serialize;
+extern crate notify_rust;
 use rustc_serialize::json;
 
 use std::vec::Vec;
+
+use notify_rust::Notification;
 
 mod bspwm;
 mod subprogram;
@@ -257,6 +260,19 @@ fn do_update_stacks(stacks: &mut Vec<StackState>) -> CommandResponse
     CommandResponse::Done
 }
 
+fn try_notify(summary: &str, body: &str, timeout: u64)
+{
+    match Notification::new()
+        .summary(summary)
+        .body(body)
+        .timeout(timeout as i32)
+        .show()
+
+    {
+        _ => {},
+    }
+}
+
 fn main() 
 {
     let mut stacks = vec!();
@@ -270,10 +286,14 @@ fn main()
                 stack.focus_leaf_by_index(0);
                 stacks.push(stack);
 
+                try_notify("Stack created", "", 2000);
+
                 CommandResponse::Done
             },
             Command::RemoveFocused => {
                 let focused = bspwm::get_focused_node();
+
+                try_notify("Stack removed", "", 2000);
 
                 remove_stack_containing_node(&mut stacks, focused)
             },
