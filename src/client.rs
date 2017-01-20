@@ -4,15 +4,15 @@ extern crate clap;
 
 extern crate regex;
 extern crate rustc_serialize;
+extern crate typed_messages;
 
 mod bspwm;
 mod subprogram;
-mod json_socket;
 mod messages;
 
 use messages::{Command, CommandResponse};
 
-use json_socket::connect_send_read;
+use typed_messages::connect_send_read;
 
 use clap::{App, Arg, SubCommand};
 
