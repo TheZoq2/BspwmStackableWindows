@@ -277,6 +277,8 @@ fn main()
 {
     let mut stacks = vec!();
 
+    println!("Running rspwm server. Control using rspc");
+
     let command_handler = |command: Command|
     {
         match command
