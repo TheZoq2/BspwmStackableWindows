@@ -16,6 +16,10 @@ use typed_messages::connect_send_read;
 
 use clap::{App, Arg, SubCommand};
 
+use std::time::Duration;
+
+const TIMEOUT_SECONDS: u64 = 1;
+
 
 fn direction_from_string(string: &str) -> Result<bspwm::CardinalDirection, String>
 {
@@ -34,7 +38,9 @@ fn direction_from_string(string: &str) -> Result<bspwm::CardinalDirection, Strin
  */
 fn try_send_message(command: Command) -> Option<CommandResponse>
 {
-    match connect_send_read::<_, CommandResponse>("localhost", 9232, command)
+    let timeout = Some(Duration::new(TIMEOUT_SECONDS, 0));
+
+    match connect_send_read::<_, CommandResponse>("localhost", 9232, command, timeout)
     {
         Ok(result) => Some(result),
         Err(e) => {
