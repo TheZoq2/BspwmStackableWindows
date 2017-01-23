@@ -6,6 +6,7 @@ dependencies = [
  "notify-rust 3.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typed_messages 0.1.0 (git+https://github.com/TheZoq2/rust_typed_messages)",
 ]
 
 [[package]]
@@ -140,6 +141,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed_messages"
+version = "0.1.0"
+source = "git+https://github.com/TheZoq2/rust_typed_messages#6e912af45ae2f489758db032a957bd5128143cfc"
+dependencies = [
+ "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "unicode-segmentation"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -187,6 +196,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum term_size 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3f7f5f3f71b0040cecc71af239414c23fd3c73570f5ff54cf50e03cef637f2a0"
 "checksum thread-id 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a9539db560102d1cef46b8b78ce737ff0bb64e7e18d35b2a5688f7d097d0ff03"
 "checksum thread_local 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "8576dbbfcaef9641452d5cf0df9b0e7eeab7694956dd33bb61515fb8f18cfdd5"
+"checksum typed_messages 0.1.0 (git+https://github.com/TheZoq2/rust_typed_messages)" = "<none>"
 "checksum unicode-segmentation 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c3bc443ded17b11305ffffe6b37e2076f328a5a8cb6aa877b1b98f77699e98b5"
 "checksum unicode-width 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2d6722facc10989f63ee0e20a83cd4e1714a9ae11529403ac7e0afd069abc39e"
 "checksum utf8-ranges 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a1ca13c08c41c9c3e04224ed9ff80461d97e121589ff27c753a16cb10830ae0f"

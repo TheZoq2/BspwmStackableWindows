@@ -10,13 +10,15 @@ use std::vec::Vec;
 
 use subprogram::call_program;
 
-/**
-    Runs bspc query -N -n $selector
-*/
-pub fn node_query(selector: &str) -> Option<Vec<u64>>
+pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
 {
     //Bspc is weird and interprets the query "" as something other than no parameters
-    let mut arguments = vec!("query", "-N", "-n");
+    let mut arguments = vec!("query", "-N");
+    if flag.len() != 0
+    {
+        arguments.push(flag);
+    }
+
     if selector.len() != 0
     {
         arguments.push(selector);
@@ -47,6 +49,14 @@ pub fn node_query(selector: &str) -> Option<Vec<u64>>
         println!("Node query failed, query returned {}", node_string);
         None
     }
+}
+
+/**
+    Runs bspc query -N -n $selector
+*/
+pub fn node_query(selector: &str) -> Option<Vec<u64>>
+{
+    node_query_with_flag(selector, "-n")
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -147,6 +157,11 @@ pub fn get_root_node() -> u64
     first_node(node_query("@/"))
 }
 
+pub fn get_all_nodes() -> Vec<u64>
+{
+    node_query_with_flag("",  "").unwrap()
+}
+
 /**
   Querys bspc to check if a node exists
 */
@@ -160,9 +175,7 @@ pub fn is_node_descendant(parent: &json::Object, child: u64) -> bool
 */
 pub fn get_node_exists(id: u64) -> bool
 {
-    let root_json = get_node_json(get_root_node());
-
-    is_node_descendant(&root_json, id)
+    get_all_nodes().contains(&id)
 }
 
 /**

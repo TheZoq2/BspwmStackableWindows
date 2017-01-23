@@ -3,6 +3,8 @@
 extern crate regex;
 extern crate rustc_serialize;
 extern crate notify_rust;
+extern crate typed_messages;
+
 use rustc_serialize::json;
 
 use std::vec::Vec;
@@ -11,7 +13,6 @@ use notify_rust::Notification;
 
 mod bspwm;
 mod subprogram;
-mod json_socket;
 mod messages;
 
 use messages::{Command, CommandResponse};
@@ -324,7 +325,7 @@ fn main()
         }
     };
 
-    json_socket::run_read_reply_server(9232, command_handler).unwrap();
+    typed_messages::run_read_reply_server(9232, command_handler).unwrap();
 }
 
 
