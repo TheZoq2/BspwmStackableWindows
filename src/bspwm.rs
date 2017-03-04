@@ -10,6 +10,14 @@ use std::vec::Vec;
 
 use subprogram::call_program;
 
+/**
+  Runs a bspwm node query with the specified selector and optionally the specified flag
+  before it
+
+  ```
+  bspc query -N <flag> <selector>
+  ```
+ */
 pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
 {
     //Bspc is weird and interprets the query "" as something other than no parameters
@@ -67,6 +75,7 @@ pub enum ResizeDirection
     Bottom,
     Right
 }
+
 /**
     Tells BSPWM to resize the specified node
 */
@@ -137,16 +146,27 @@ pub fn node_balance(node: u64)
 */
 pub fn node_focus(node: u64)
 {
-    println!("{}", call_program("bspc", &vec!("node", "-f", &format!("{}", node))).unwrap());
+    call_program("bspc", &vec!("node", "-f", &format!("{}", node))).unwrap();
+}
+
+/**
+  Returns the neighbour of the specified node in the specified direction, 
+  if it exists.
+
+  if monitor_only is false, only neighbours on the same monitor will be considered
+ */
+pub fn get_node_neighbour(node: u64, direction: CardinalDirection, monitor_only: bool) -> Option<u64>
+{
+    unimplemented!()
 }
 
 /**
     Returns the first node in a list of nodes. Performs 2 uwnwraps
     so it will crash if the list is empty or None
 */
-pub fn first_node(list: Option<Vec<u64>>) -> u64
+pub fn first_node(list: Option<Vec<u64>>) -> Option<u64>
 {
-    list.unwrap().pop().unwrap()
+    list.unwrap().pop()
 }
 
 /**
@@ -154,7 +174,7 @@ pub fn first_node(list: Option<Vec<u64>>) -> u64
 */
 pub fn get_root_node() -> u64
 {
-    first_node(node_query("@/"))
+    first_node(node_query("@/")).unwrap()
 }
 
 pub fn get_all_nodes() -> Vec<u64>
@@ -181,7 +201,7 @@ pub fn get_node_exists(id: u64) -> bool
 /**
     Querys bspc for the currently focused node
 */
-pub fn get_focused_node() -> u64
+pub fn get_focused_node() -> Option<u64>
 {
     //node_query("").unwrap().pop().unwrap()
     first_node(node_query(""))
@@ -443,6 +463,32 @@ pub enum CardinalDirection
     South,
     West,
     East
+}
+
+impl CardinalDirection
+{
+    pub fn from_str(string: &str) -> Option<CardinalDirection>
+    {
+        match string
+        {
+            "north" => Some(CardinalDirection::North),
+            "south" => Some(CardinalDirection::South),
+            "west" => Some(CardinalDirection::West),
+            "east" => Some(CardinalDirection::East),
+            _ => None
+        }
+    }
+
+    pub fn as_str(&self) -> &str
+    {
+        match *self
+        {
+            CardinalDirection::North => "north",
+            CardinalDirection::South => "south",
+            CardinalDirection::East => "east",
+            CardinalDirection::West => "west"
+        }
+    }
 }
 
 

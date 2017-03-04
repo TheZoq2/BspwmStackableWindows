@@ -19,3 +19,7 @@ path = "src/main.rs"
 [[bin]]
 name = "rspc"
 path = "src/client.rs"
+
+[[bin]]
+name = "irspc"
+path = "src/irspc.rs"
