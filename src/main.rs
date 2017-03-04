@@ -295,7 +295,7 @@ fn main()
                         try_notify("Stack created", "", 2000);
                     }
                     None => {
-                        try_notify("No stack selected", "", 2000);
+                        try_notify("No focused window", "", 2000);
                     }
                 };
                 CommandResponse::Done

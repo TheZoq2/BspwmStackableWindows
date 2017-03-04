@@ -138,7 +138,7 @@ pub fn node_balance(node: u64)
             )
         );
 
-    println!("Balance node output {}", program_output.unwrap());
+    //println!("Balance node output {}", program_output.unwrap());
 }
 
 /**
