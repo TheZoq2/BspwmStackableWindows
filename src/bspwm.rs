@@ -490,6 +490,12 @@ pub fn get_desktop_name(id: u64) -> String
 
 
 
+pub fn get_neighbouring_desktop(desktop_id: u64, direction: CardinalDirection) -> Option<u64>
+{
+}
+
+
+
 
 /**
   Returns the list of directions you have to take from a node
