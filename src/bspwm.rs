@@ -10,26 +10,106 @@ use std::vec::Vec;
 
 use subprogram::call_program;
 
-/**
-  Runs a bspwm node query with the specified selector and optionally the specified flag
-  before it
+////////////////////////////////////////////////////////////////////////////////
+//                          Bspwm related datatypes
+////////////////////////////////////////////////////////////////////////////////
 
-  ```
-  bspc query -N <flag> <selector>
-  ```
- */
-pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum FocusTarget
 {
-    //Bspc is weird and interprets the query "" as something other than no parameters
-    let mut arguments = vec!("query", "-N");
-    if flag.len() != 0
+    Node(u64),
+    Desktop(u64),
+    None
+}
+
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum ResizeDirection
+{
+    Top,
+    Left,
+    Bottom,
+    Right
+}
+
+
+#[derive(PartialEq, Clone, RustcEncodable)]
+pub enum SplitDirection
+{
+    Horizontal,
+    Vertical
+}
+
+
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Children
+{
+    First,
+    Second
+}
+
+
+
+
+#[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
+pub enum CardinalDirection
+{
+    North,
+    South,
+    West,
+    East
+}
+
+impl CardinalDirection
+{
+    pub fn from_str(string: &str) -> Option<CardinalDirection>
     {
-        arguments.push(flag);
+        match string
+        {
+            "north" => Some(CardinalDirection::North),
+            "south" => Some(CardinalDirection::South),
+            "west" => Some(CardinalDirection::West),
+            "east" => Some(CardinalDirection::East),
+            _ => None
+        }
     }
 
-    if selector.len() != 0
+    pub fn as_str(&self) -> &str
     {
-        arguments.push(selector);
+        match *self
+        {
+            CardinalDirection::North => "north",
+            CardinalDirection::South => "south",
+            CardinalDirection::East => "east",
+            CardinalDirection::West => "west"
+        }
+    }
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                  Query and low level bspwm commands
+////////////////////////////////////////////////////////////////////////////////
+
+fn general_query(query_type: &str, flags: Vec<(&str, &str)>) -> Result<Vec<u64>, String>
+{
+    //Bspc is weird and interprets the query "" as something other than no parameters
+    let mut arguments = vec!("query", query_type);
+
+    for (flag, selector) in flags
+    {
+        if flag.len() != 0
+        {
+            arguments.push(flag);
+        }
+
+        if selector.len() != 0
+        {
+            arguments.push(selector);
+        }
     }
 
     //Actualy run the query
@@ -40,7 +120,7 @@ pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
 
     if query_check.find(&node_string) != None || node_string == "".to_string()
     {
-        Some(node_string.split("\n")
+        Ok(node_string.split("\n")
                 .filter(|s| //BSPWM places a \n after all results which results in a trailing result
                 {
                     s.len() != 0
@@ -54,11 +134,34 @@ pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
     }
     else
     {
-        println!("Node query failed, query returned {}", node_string);
-        None
+        Err(format!("Node query failed, query returned {}", node_string))
     }
 }
 
+
+//TODO: Return error instead of option
+/**
+  Runs a bspwm node query with the specified selector and optionally the specified flag
+  before it
+
+  ```
+  bspc query -N <flag> <selector>
+  ```
+ */
+pub fn node_query_with_flag(selector: &str, flag: &str) -> Option<Vec<u64>>
+{
+    match general_query("-N", vec!((flag, selector)))
+    {
+        Ok(val) => Some(val),
+        Err(msg) => {
+            println!("{}", msg);
+            None
+        }
+    }
+}
+
+
+//TODO: Update to use result instead of option
 /**
     Runs bspc query -N -n $selector
 */
@@ -67,14 +170,26 @@ pub fn node_query(selector: &str) -> Option<Vec<u64>>
     node_query_with_flag(selector, "-n")
 }
 
-#[derive(PartialEq, Eq, Debug)]
-pub enum ResizeDirection
+
+/**
+  Runs bspc query -D -d $selector.
+  Err if bspwm returns something unexpected
+*/
+pub fn desktop_query(selector: &str) -> Result<Vec<u64>, String>
 {
-    Top,
-    Left,
-    Bottom,
-    Right
+    general_query("-D", vec!(("-d", selector)))
 }
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                      state manipulation commands
+////////////////////////////////////////////////////////////////////////////////
 
 /**
     Tells BSPWM to resize the specified node
@@ -129,16 +244,14 @@ pub fn node_balance(node: u64)
 {
     let node_name = get_node_name(node);
 
-    let program_output = call_program(
+    call_program(
         "bspc",
         &vec!(
             "node",
             &node_name,
             "-B",
             )
-        );
-
-    //println!("Balance node output {}", program_output.unwrap());
+        ).unwrap();
 }
 
 /**
@@ -149,16 +262,15 @@ pub fn node_focus(node: u64)
     call_program("bspc", &vec!("node", "-f", &format!("{}", node))).unwrap();
 }
 
-/**
-  Returns the neighbour of the specified node in the specified direction, 
-  if it exists.
 
-  if monitor_only is false, only neighbours on the same monitor will be considered
- */
-pub fn get_node_neighbour(node: u64, direction: CardinalDirection, monitor_only: bool) -> Option<u64>
-{
-    unimplemented!()
-}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                      High level, safe query functions
+////////////////////////////////////////////////////////////////////////////////
+
+
 
 /**
     Returns the first node in a list of nodes. Performs 2 uwnwraps
@@ -169,6 +281,9 @@ pub fn first_node(list: Option<Vec<u64>>) -> Option<u64>
     list.unwrap().pop()
 }
 
+
+
+
 /**
     Returns the root node
 */
@@ -177,10 +292,21 @@ pub fn get_root_node() -> u64
     first_node(node_query("@/")).unwrap()
 }
 
+
+
+
+
+/**
+  Returns all the nodes that currently exist
+*/
 pub fn get_all_nodes() -> Vec<u64>
 {
     node_query_with_flag("",  "").unwrap()
 }
+
+
+
+
 
 /**
   Querys bspc to check if a node exists
@@ -190,6 +316,10 @@ pub fn is_node_descendant(parent: &json::Object, child: u64) -> bool
     get_node_descendants(parent).contains(&child)
 }
 
+
+
+
+
 /**
   Checks wether or not a node exists
 */
@@ -197,6 +327,9 @@ pub fn get_node_exists(id: u64) -> bool
 {
     get_all_nodes().contains(&id)
 }
+
+
+
 
 /**
     Querys bspc for the currently focused node
@@ -206,6 +339,35 @@ pub fn get_focused_node() -> Option<u64>
     //node_query("").unwrap().pop().unwrap()
     first_node(node_query(""))
 }
+
+
+
+
+
+/**
+  Returns a list of all nodes on the specified desktop 
+ */
+pub fn get_nodes_on_desktop(desktop: u64) -> Vec<u64>
+{
+    node_query_with_flag(&get_desktop_name(desktop), "-d").unwrap()
+}
+
+
+
+
+
+/**
+  Returns the neighbour of a specified node
+ */
+pub fn get_neighbouring_node(node: u64, direction: CardinalDirection) -> Option<u64>
+{
+    let query = format!("{}#{}", get_node_name(node), direction.as_str());
+    node_query(&query).unwrap().pop()
+}
+
+
+
+
 
 /**
     Gets the subtree of node as a JSON object
@@ -219,12 +381,10 @@ pub fn get_node_json(node: u64) -> json::Object
     json::Json::from_str(&str_json).unwrap().as_object().unwrap().clone()
 }
 
-#[derive(PartialEq, Clone, RustcEncodable)]
-pub enum SplitDirection
-{
-    Horizontal,
-    Vertical
-}
+
+
+
+
 /**
     Returns the split type of a node.
 */
@@ -237,6 +397,9 @@ pub fn get_node_split_direction(node_json: &json::Object) -> SplitDirection
         _ => panic!("Unknown splitType value")
     }
 }
+
+
+
 
 /**
     Returns all children of a specific node
@@ -290,6 +453,9 @@ pub fn find_target_stack(root: &json::Object, direction: &SplitDirection) -> Vec
     }
 }
 
+
+
+
 /**
     Returns the ID of a given node from its json representation
 */
@@ -297,6 +463,10 @@ pub fn get_node_id(node_json: &json::Object) -> u64
 {
     node_json.get("id").unwrap().as_u64().unwrap()
 }
+
+
+
+
 
 /**
   Returns the a string representation of the ID of a node that can be interpreted by bspc
@@ -307,16 +477,24 @@ pub fn get_node_name(id: u64) -> String
     format!("0x{:X}", id)
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum Children
-{
-    First,
-    Second
-}
+
+
 /**
-    Returns the list of directions you have to take from a node
-    to a descendant. The list is in a reverse order so in order to walk the
-    path to the bottom node, you should pop the resulting vector
+  Returns the a string representation of the ID of a desktop that can be interpreted by bspc
+  (0x...)
+*/
+pub fn get_desktop_name(id: u64) -> String
+{
+    format!("0x{:X}", id)
+}
+
+
+
+
+/**
+  Returns the list of directions you have to take from a node
+  to a descendant. The list is in a reverse order so in order to walk the
+  path to the bottom node, you should pop the resulting vector
 */
 pub fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Children>>
 {
@@ -352,6 +530,11 @@ pub fn find_path_to_node(root: &json::Object, target: u64) -> Option<Vec<Childre
     }
 }
 
+
+
+/**
+ Returns all the descendant nodes of a specified node
+*/
 pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
 {
     fn tail_recursion_helper(root: &json::Object, buffer: &mut Vec<u64>)
@@ -377,6 +560,10 @@ pub fn get_node_descendants(root: &json::Object) -> Vec<u64>
     result
 }
 
+
+
+
+
 /**
     Counts the amount of descendants that a node has
 */
@@ -384,6 +571,10 @@ pub fn count_node_descendant_leaves(root: &json::Object) -> u64
 {
     get_node_descendant_leaves(root).len() as u64
 }
+
+
+
+
 
 /**
   Returns all the leaf nodes that are descendants of root
@@ -405,6 +596,9 @@ pub fn get_node_descendant_leaves(root: &json::Object) -> Vec<u64>
         }
     }
 }
+
+
+
 
 pub fn focus_node_by_path(
         node_json: &json::Object,
@@ -456,40 +650,9 @@ pub fn focus_node_by_path(
     focus_node_by_path(&traverse_node, remaining_path, resize_directions);
 }
 
-#[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
-pub enum CardinalDirection
-{
-    North,
-    South,
-    West,
-    East
-}
 
-impl CardinalDirection
-{
-    pub fn from_str(string: &str) -> Option<CardinalDirection>
-    {
-        match string
-        {
-            "north" => Some(CardinalDirection::North),
-            "south" => Some(CardinalDirection::South),
-            "west" => Some(CardinalDirection::West),
-            "east" => Some(CardinalDirection::East),
-            _ => None
-        }
-    }
 
-    pub fn as_str(&self) -> &str
-    {
-        match *self
-        {
-            CardinalDirection::North => "north",
-            CardinalDirection::South => "south",
-            CardinalDirection::East => "east",
-            CardinalDirection::West => "west"
-        }
-    }
-}
+
 
 
 
