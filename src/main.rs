@@ -288,23 +288,38 @@ fn main()
         match command
         {
             Command::CreateStack => {
-                let stack = StackState::new(&bspwm::get_node_json(bspwm::get_focused_node()));
-                stack.focus_leaf_by_index(0);
-                stacks.push(stack);
+                match bspwm::get_focused_node()
+                {
+                    Some(node) => {
+                        let stack = StackState::new(&bspwm::get_node_json(node));
+                        stack.focus_leaf_by_index(0);
+                        stacks.push(stack);
 
-                try_notify("Stack created", "", 2000);
-
+                        try_notify("Stack created", "", 2000);
+                    }
+                    None => {
+                        try_notify("No focused window", "", 2000);
+                    }
+                };
                 CommandResponse::Done
             },
             Command::RemoveFocused => {
-                let focused = bspwm::get_focused_node();
+                match bspwm::get_focused_node()
+                {
+                    Some(focused) => {
+                        try_notify("Stack removed", "", 2000);
 
-                try_notify("Stack removed", "", 2000);
-
-                remove_stack_containing_node(&mut stacks, focused)
+                        remove_stack_containing_node(&mut stacks, focused)
+                    }
+                    None => CommandResponse::Done
+                }
             },
             Command::IsFocusedInStack => {
-                let focused = bspwm::get_focused_node();
+                let focused = match bspwm::get_focused_node()
+                {
+                    Some(node) => node,
+                    None => {return CommandResponse::No}
+                };
 
                 match is_node_in_stacks(&stacks, focused)
                 {
@@ -315,10 +330,17 @@ fn main()
             Command::FocusCurrent => {
                 do_update_stacks(&mut stacks);
 
-                for stack in &stacks
+                match bspwm::get_focused_node()
                 {
-                    stack.focus_node_by_id(bspwm::get_focused_node())
+                    Some(node) => {
+                        for stack in &stacks
+                        {
+                            stack.focus_node_by_id(node)
+                        }
+                    },
+                    None => {}
                 }
+
 
                 CommandResponse::Done
             }
