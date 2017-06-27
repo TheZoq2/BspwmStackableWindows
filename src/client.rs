@@ -9,6 +9,7 @@ extern crate typed_messages;
 mod bspwm;
 mod subprogram;
 mod messages;
+mod swap;
 
 use messages::{Command, CommandResponse};
 

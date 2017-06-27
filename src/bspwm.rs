@@ -181,6 +181,47 @@ pub fn desktop_query(selector: &str) -> Result<Vec<u64>, String>
 }
 
 
+/**
+  Tries to get the root node of the specified desktop
+*/
+pub fn desktop_top_node_query(desktop: u64) -> Result<Option<u64>, String>
+{
+    let all_nodes = general_query("-N", vec!(("-d", format!("{}", desktop))))?;
+
+    fn inner(node: u64) -> Result<u64, String>
+    {
+        let new_nodes = match node_query(format!("{}#@parent", node))
+        {
+            Some(nodes) => Ok(nodes),
+            None => Err("No child nodes found for")
+        }?;
+
+
+
+        // We found the root
+        if new_nodes.len() == 0
+        {
+            node
+        }
+        else
+        {
+            inner(new_nodes[0])
+        }
+
+    }
+
+    if all_nodes.len() == 0
+    {
+        Ok(None)
+    }
+    else
+    {
+        Ok()
+    }
+}
+
+
+
 
 
 
@@ -261,6 +302,8 @@ pub fn node_focus(node: u64)
 {
     call_program("bspc", &vec!("node", "-f", &format!("{}", node))).unwrap();
 }
+
+
 
 
 
@@ -490,11 +533,6 @@ pub fn get_desktop_name(id: u64) -> String
 
 
 
-pub fn get_neighbouring_desktop(desktop_id: u64, direction: CardinalDirection) -> Option<u64>
-{
-}
-
-
 
 
 /**
@@ -655,9 +693,6 @@ pub fn focus_node_by_path(
     //Dig deeper
     focus_node_by_path(&traverse_node, remaining_path, resize_directions);
 }
-
-
-
 
 
 
