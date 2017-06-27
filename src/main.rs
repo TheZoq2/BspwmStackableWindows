@@ -9,6 +9,8 @@ use rustc_serialize::json;
 
 use std::vec::Vec;
 
+use std::time::Duration;
+
 use notify_rust::Notification;
 
 mod bspwm;
@@ -17,6 +19,7 @@ mod messages;
 
 use messages::{Command, CommandResponse};
 
+const TIMEOUT_SECONDS: u64 = 1;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                         Bspc calls
@@ -347,7 +350,8 @@ fn main()
         }
     };
 
-    typed_messages::run_read_reply_server(9232, command_handler).unwrap();
+    let timeout = Some(Duration::new(TIMEOUT_SECONDS, 0));
+    typed_messages::run_read_reply_server(9232, command_handler, timeout).unwrap();
 }
 
 

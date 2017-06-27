@@ -534,7 +534,6 @@ pub fn get_desktop_name(id: u64) -> String
 
 
 
-
 /**
   Returns the list of directions you have to take from a node
   to a descendant. The list is in a reverse order so in order to walk the
