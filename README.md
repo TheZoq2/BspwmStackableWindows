@@ -1,6 +1,6 @@
 # Stackable windows for bspwm
 
-![Demo](https://gfycat.com/ScentedBackCrustacean)
+![https://gfycat.com/ScentedBackCrustacean](Demo)
 
 A lot of the time, you have a couple of terminals or other programs
 that you don't want to close, but you also don't want to take up too much space.
